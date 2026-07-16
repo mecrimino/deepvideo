@@ -79,6 +79,11 @@ export interface RunPipelineResponse {
   run: PipelineRun;
 }
 
+/** POST /api/pipeline/run/:id/cancel */
+export interface CancelRunResponse {
+  ok: boolean;
+}
+
 /* --------------------------------- media --------------------------------- */
 
 export interface UploadMediaResponse {
@@ -131,9 +136,21 @@ export interface StartRenderResponse {
 
 /* ------------------------------- agent chat ------------------------------- */
 
+/** A timeline clip the user attached to the message as a mention chip. */
+export interface AgentMention {
+  clipId: string;
+  /** 1-based index on the video track. */
+  index: number;
+  label: string;
+}
+
 export interface AgentChatRequest {
   message: string;
   timeline: Timeline;
+  /** Clips referenced by "Add to Deep Video Agent" mention chips. */
+  mentions?: AgentMention[];
+  /** Fast = library-only quick edits; Smart = deeper work incl. stock downloads. */
+  effort?: 'fast' | 'smart';
 }
 
 export interface AgentChatResponse {
@@ -158,6 +175,11 @@ export interface SaveProjectResponse {
 
 export interface LoadProjectResponse {
   project: Project;
+}
+
+/** DELETE /api/project/:id */
+export interface DeleteProjectResponse {
+  ok: boolean;
 }
 
 /** Card-sized project summary for listings (Home "Recent Generations"). */

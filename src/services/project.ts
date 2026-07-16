@@ -1,12 +1,20 @@
 /** Client for project save/load. Server side is stubbed (501) for now. */
 
 import type {
+  DeleteProjectResponse,
   ListProjectsResponse,
   LoadProjectResponse,
   SaveProjectRequest,
   SaveProjectResponse,
 } from '@deep-video/shared';
 import { fetchJson } from '../lib/fetchJson';
+
+/** Permanently delete a saved project (its JSON file on the server). */
+export function deleteProject(id: string): Promise<DeleteProjectResponse> {
+  return fetchJson<DeleteProjectResponse>(`/api/project/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
 
 /** Saved projects, newest first — feeds Home's "Recent Generations". */
 export function listProjects(): Promise<ListProjectsResponse> {

@@ -20,6 +20,8 @@ import type {
   AgentChatRequest,
   AgentChatResponse,
   ApiError,
+  CancelRunResponse,
+  DeleteProjectResponse,
   HealthResponse,
   IndexClipsRequest,
   IndexClipsResponse,
@@ -52,7 +54,7 @@ import { createUsageStore } from './mini/usage.js';
 import { createClipVision } from './mini/vision.js';
 import { indexDirectory, isAudioFile, isMediaFile, registerMediaFile, saveUpload } from './library.js';
 import { DATA_DIR, MEDIA_DIR, ensureDataDirs, fromDataRelative, toDataRelative } from './paths.js';
-import { listProjects, loadProject, saveProject } from './projects.js';
+import { deleteProject, listProjects, loadProject, saveProject } from './projects.js';
 import { ffmpegAvailable, probe, renderTimeline } from './render.js';
 import { createRunStore } from './runstore.js';
 import { transcribeAudio } from './transcribe.js';
@@ -90,6 +92,8 @@ const miniDeps = {
 /** In-memory registries for things that are actively in flight. */
 const liveRuns = new Map<string, PipelineRun>();
 const renderJobs = new Map<string, RenderJob>();
+/** Run ids the user cancelled — the mini pipeline checks this cooperatively. */
+const cancelledRuns = new Set<string>();
 
 function errorPayload(err: unknown): ApiError {
   return { error: err instanceof Error ? err.message : String(err) };
@@ -216,13 +220,18 @@ app.post<{ Body: RunPipelineRequest }>('/api/pipeline/run', async (req, reply) =
   // Both engines report their initial state synchronously, so the run is in
   // liveRuns by the time the call returns.
   const before = new Set(liveRuns.keys());
+  const runIdBox = { id: '' };
   const runPromise =
     req.body?.model === 'mini'
       ? runMiniPipeline(miniDeps, {
           script,
           audioPath,
           getTranscript,
-          onProgress: (run) => liveRuns.set(run.id, run),
+          shouldStop: () => runIdBox.id !== '' && cancelledRuns.has(runIdBox.id),
+          onProgress: (run) => {
+            runIdBox.id = run.id;
+            liveRuns.set(run.id, run);
+          },
         })
       : (async () =>
           runPipeline(
@@ -249,6 +258,21 @@ app.get<{ Params: { id: string } }>('/api/pipeline/run/:id', async (req, reply) 
   const stored = await runStore.load(req.params.id);
   if (stored) return stored;
   return reply.code(404).send({ error: `run not found: ${req.params.id}` } satisfies ApiError);
+});
+
+/** Cancel an in-flight run (the mini pipeline stops at its next checkpoint). */
+app.post<{ Params: { id: string } }>('/api/pipeline/run/:id/cancel', async (req): Promise<CancelRunResponse> => {
+  cancelledRuns.add(req.params.id);
+  const live = liveRuns.get(req.params.id);
+  if (live && live.status === 'running') {
+    live.status = 'failed';
+    const running = live.stages.find((s) => s.status === 'running');
+    if (running) {
+      running.status = 'failed';
+      running.error = 'Cancelled by user';
+    }
+  }
+  return { ok: true };
 });
 
 /* --------------------------------- render -------------------------------- */
@@ -304,6 +328,8 @@ app.post<{ Body: AgentChatRequest }>('/api/agent/chat', async (req, reply) => {
       db,
       embedder,
       ollama,
+      mentions: req.body.mentions,
+      effort: req.body.effort,
     });
     const changed = result.actions.length > 0;
     return {
@@ -347,6 +373,10 @@ app.get<{ Params: { id: string } }>('/api/project/:id', async (req, reply) => {
     return reply.code(404).send({ error: `project not found: ${req.params.id}` } satisfies ApiError);
   }
   return { project } satisfies LoadProjectResponse;
+});
+
+app.delete<{ Params: { id: string } }>('/api/project/:id', async (req): Promise<DeleteProjectResponse> => {
+  return { ok: await deleteProject(req.params.id) };
 });
 
 /* ---------------------------------- boot --------------------------------- */

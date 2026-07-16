@@ -95,6 +95,21 @@ matches (fills `GenerationSlot`s with stills until real video gen exists):
 | Example | `https://image.pollinations.ai/prompt/a%20MiG-25%20climbing%20through%20clouds` |
 | Returns | the image bytes directly — save under `server/data/` and index it |
 
+## 6. Auth0 (login gate)
+
+| | |
+|---|---|
+| Use for | Account gate — the web app is unusable without signing in |
+| Domain | `.env` → `VITE_AUTH0_DOMAIN` (public) |
+| Client ID | `.env` → `VITE_AUTH0_CLIENT_ID` (public) |
+| Client Secret | `.env` → `AUTH0_CLIENT_SECRET` — **server-side only, NEVER in frontend code** (the SPA uses Authorization Code + PKCE, which needs no secret) |
+| Frontend | `@auth0/auth0-react` — provider + gate in `src/auth/` |
+
+Dashboard setup (Applications → your app → Settings): add
+`http://localhost:5173` to **Allowed Callback URLs**, **Allowed Logout URLs**,
+and **Allowed Web Origins** (plus any other port you serve the app from).
+Application type should be **Single Page Application**.
+
 ## Key-rotation pattern (all providers)
 
 ```ts

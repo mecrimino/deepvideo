@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && npm run typecheck --workspaces --if-present"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.21.0",
     "lucide-react": "^0.400.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

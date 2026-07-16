@@ -1,17 +1,24 @@
 /**
- * Right-hand "Deep Video Agent" chat column. Fully functional: messages go to
- * POST /api/agent/chat with the current timeline; when the agent edits it,
- * the returned timeline is applied to the editor (undoable). Powered by
- * OpenRouter (tencent/hy3:free) with Ollama and offline command fallbacks —
- * the chip in the composer shows which brain answered. Toggled from the
- * panel button in the top bar.
+ * Right-hand "Deep Video Agent" chat column — full window height. Matches the
+ * reference agent UI:
+ *  - "New chat" header with history/new-chat control
+ *  - welcome block + suggestion cards anchored above the composer
+ *  - clip MENTION CHIPS in the composer (thumbnail · label · #index · ×),
+ *    added from the timeline's "Add to Deep Video Agent" pill or Ctrl+L
+ *  - Agent chip + a real EFFORT picker (Fast = quick library-only edits,
+ *    Smart = deeper work incl. stock downloads; Smart costs 1 credit)
+ *  - send turns into a STOP button while the agent thinks (aborts the request)
+ *  - "Total Credits Used" strip tracking real session spend
+ * Messages go to POST /api/agent/chat with the current timeline; returned
+ * timelines are applied to the editor (undoable).
  */
 
-import { ArrowUp, Bot, ChevronRight, Loader2, Plus, Sparkles } from 'lucide-react';
+import { ArrowUp, Bot, ChevronDown, Loader2, Plus, Sparkles, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { AgentMention } from '@deep-video/shared';
+import { spendCredits } from '../../lib/credits';
 import { agentChat } from '../../services/agent';
-import { useAppStore } from '../../store/useAppStore';
-import { useEditorStore } from '../../store/useEditorStore';
+import { useEditorStore, type ChatMention } from '../../store/useEditorStore';
 import { colors, gradients } from '../../theme';
 
 const SUGGESTIONS = [
@@ -21,51 +28,164 @@ const SUGGESTIONS = [
 ];
 
 const BACKEND_LABEL: Record<string, string> = {
-  openrouter: 'Agent · hy3 (OpenRouter)',
-  ollama: 'Agent · Ollama',
-  commands: 'Agent · command mode',
+  openrouter: 'hy3 (OpenRouter)',
+  ollama: 'Ollama',
+  commands: 'command mode',
 };
+
+const SMART_COST = 1; // credits per Smart message; Fast is free
 
 interface Message {
   role: 'user' | 'agent';
   text: string;
+  mentions?: ChatMention[];
   actions?: string[];
 }
 
+function MentionChip({
+  m,
+  onRemove,
+  small,
+}: {
+  m: ChatMention;
+  onRemove?: () => void;
+  small?: boolean;
+}) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: 'rgba(72,111,255,.22)',
+        border: '1px solid rgba(97,132,255,.5)',
+        borderRadius: 6,
+        padding: small ? '1px 6px 1px 2px' : '2px 7px 2px 3px',
+        maxWidth: 200,
+        verticalAlign: 'middle',
+      }}
+    >
+      {m.thumb ? (
+        <img
+          src={m.thumb}
+          alt=""
+          style={{ width: small ? 16 : 20, height: small ? 12 : 14, objectFit: 'cover', borderRadius: 3 }}
+        />
+      ) : (
+        <span
+          style={{
+            width: small ? 16 : 20,
+            height: small ? 12 : 14,
+            borderRadius: 3,
+            background: gradients.elementTrack,
+            display: 'inline-block',
+          }}
+        />
+      )}
+      <span
+        style={{
+          fontSize: small ? 10.5 : 11.5,
+          color: '#bcd0ff',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          maxWidth: 110,
+        }}
+      >
+        {m.label}
+      </span>
+      <span style={{ fontSize: small ? 9.5 : 10.5, color: '#7f96d9', flexShrink: 0 }}>#{m.index}</span>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          title="Remove"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#7f96d9',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <X size={11} />
+        </button>
+      )}
+    </span>
+  );
+}
+
 export function AgentChat() {
-  const toggleChat = useAppStore((s) => s.toggleChat);
   const timeline = useEditorStore((s) => s.timeline);
   const applyTimeline = useEditorStore((s) => s.applyTimeline);
+  const mentions = useEditorStore((s) => s.chatMentions);
+  const removeMention = useEditorStore((s) => s.removeMention);
+  const clearMentions = useEditorStore((s) => s.clearMentions);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [backend, setBackend] = useState<string | null>(null);
+  const [effort, setEffort] = useState<'fast' | 'smart'>('smart');
+  const [effortOpen, setEffortOpen] = useState(false);
+  const [creditsUsed, setCreditsUsed] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [messages, busy]);
 
+  const stop = () => {
+    abortRef.current?.abort();
+  };
+
   const send = async (text?: string) => {
-    const message = (text ?? input).trim();
-    if (!message || busy || !timeline) return;
+    const raw = (text ?? input).trim();
+    if ((!raw && mentions.length === 0) || busy || !timeline) return;
+    const sentMentions = [...mentions];
+    const apiMentions: AgentMention[] = sentMentions.map(({ clipId, index, label }) => ({
+      clipId,
+      index,
+      label,
+    }));
+    const message =
+      sentMentions.length > 0 && raw
+        ? raw
+        : raw || `Look at ${sentMentions.map((m) => `clip #${m.index}`).join(', ')}.`;
+
     setInput('');
-    setMessages((m) => [...m, { role: 'user', text: message }]);
+    clearMentions();
+    setMessages((m) => [...m, { role: 'user', text: message, mentions: sentMentions }]);
     setBusy(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const res = await agentChat({ message, timeline });
+      const res = await agentChat(
+        { message, timeline, mentions: apiMentions, effort },
+        controller.signal,
+      );
       if (res.timeline) applyTimeline(res.timeline);
       if (res.backend) setBackend(res.backend);
+      if (effort === 'smart') {
+        spendCredits(SMART_COST);
+        setCreditsUsed((c) => c + SMART_COST);
+      }
       setMessages((m) => [...m, { role: 'agent', text: res.reply, actions: res.actions }]);
     } catch (err) {
+      const aborted = err instanceof DOMException && err.name === 'AbortError';
       setMessages((m) => [
         ...m,
         {
           role: 'agent',
-          text: `I couldn't reach the local server: ${err instanceof Error ? err.message : err}`,
+          text: aborted
+            ? 'Stopped.'
+            : `I couldn't reach the local server: ${err instanceof Error ? err.message : err}`,
         },
       ]);
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   };
@@ -82,6 +202,18 @@ export function AgentChat() {
     cursor: 'pointer',
   };
 
+  const pickerChip: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    background: 'transparent',
+    border: 'none',
+    color: colors.textDim,
+    fontSize: 12.5,
+    cursor: 'pointer',
+    padding: '3px 4px',
+  };
+
   return (
     <div
       style={{
@@ -95,31 +227,6 @@ export function AgentChat() {
         position: 'relative',
       }}
     >
-      {/* collapse handle on the panel's left edge */}
-      <button
-        onClick={toggleChat}
-        title="Collapse agent panel"
-        style={{
-          position: 'absolute',
-          left: -9,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 18,
-          height: 36,
-          borderRadius: 8,
-          background: colors.raised,
-          border: `1px solid ${colors.border9}`,
-          color: colors.textDim,
-          display: 'grid',
-          placeItems: 'center',
-          zIndex: 7,
-          padding: 0,
-          cursor: 'pointer',
-        }}
-      >
-        <ChevronRight size={12} />
-      </button>
-
       {/* header */}
       <div
         style={{
@@ -127,59 +234,56 @@ export function AgentChat() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 8,
-          padding: '12px 16px',
+          padding: '11px 16px',
           borderBottom: `1px solid ${colors.border7}`,
         }}
       >
-        <span style={{ fontSize: 13.5, fontWeight: 600 }}>
-          {messages.length === 0 ? 'New chat' : 'Deep Video Agent'}
-        </span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: colors.textSoft }}>New chat</span>
         {messages.length > 0 && (
-          <button onClick={() => setMessages([])} className="hv-rail" style={iconBtn} title="New chat">
+          <button
+            onClick={() => {
+              setMessages([]);
+              setCreditsUsed(0);
+            }}
+            className="hv-rail"
+            style={iconBtn}
+            title="New chat"
+          >
             <Plus size={16} />
           </button>
         )}
       </div>
 
-      {/* body */}
+      {/* body — welcome + suggestions sit at the BOTTOM, like the reference */}
       <div
         ref={bodyRef}
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '18px 16px',
+          padding: '18px 16px 10px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 14,
+          justifyContent: messages.length === 0 ? 'flex-end' : 'flex-start',
+          gap: 12,
           minHeight: 0,
         }}
       >
         {messages.length === 0 && (
           <>
-            <div style={{ textAlign: 'center', margin: 'auto 0 14px' }}>
+            <div style={{ textAlign: 'center', marginBottom: 8 }}>
+              <div style={{ fontSize: 15.5, fontWeight: 700 }}>Deep Video Agent</div>
               <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  background: gradients.brand,
-                  margin: '0 auto 12px',
-                }}
-              />
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Deep Video Agent</div>
-              <div
-                style={{
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: colors.textFaint,
                   lineHeight: 1.55,
                   marginTop: 6,
-                  maxWidth: 260,
+                  maxWidth: 270,
                   marginLeft: 'auto',
                   marginRight: 'auto',
                 }}
               >
-                Ask me to edit your timeline, add effects, or improve your cut — cut scenes,
-                replace stock and images, regenerate any section.
+                Ask me to edit your timeline, add effects, or improve your cut.
               </div>
             </div>
             {SUGGESTIONS.map((s) => (
@@ -192,7 +296,7 @@ export function AgentChat() {
                   background: colors.card,
                   border: `1px solid ${colors.border8}`,
                   borderRadius: 10,
-                  padding: '11px 13px',
+                  padding: '10px 13px',
                   fontSize: 12.5,
                   color: colors.textSoft,
                   lineHeight: 1.45,
@@ -205,9 +309,12 @@ export function AgentChat() {
           </>
         )}
 
+        {messages.length > 0 && (
+          <div style={{ fontSize: 10.5, color: colors.textGhost }}>just now</div>
+        )}
         {messages.map((m, i) =>
           m.role === 'user' ? (
-            <div key={i} style={{ alignSelf: 'flex-end', maxWidth: '88%' }}>
+            <div key={i} style={{ alignSelf: 'flex-end', maxWidth: '92%' }}>
               <div
                 style={{
                   background: '#1e2635',
@@ -216,10 +323,15 @@ export function AgentChat() {
                   padding: '9px 12px',
                   fontSize: 13,
                   color: '#dbe2ef',
-                  lineHeight: 1.5,
+                  lineHeight: 1.6,
                   whiteSpace: 'pre-wrap',
                 }}
               >
+                {m.mentions?.map((men) => (
+                  <span key={men.clipId} style={{ marginRight: 6 }}>
+                    <MentionChip m={men} small />
+                  </span>
+                ))}
                 {m.text}
               </div>
             </div>
@@ -245,13 +357,7 @@ export function AgentChat() {
                   {m.actions.map((a, j) => (
                     <div
                       key={j}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 11,
-                        color: '#8fb389',
-                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#8fb389' }}
                     >
                       <Sparkles size={11} style={{ flexShrink: 0 }} />
                       {a}
@@ -266,21 +372,59 @@ export function AgentChat() {
         {busy && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.textFaint, fontSize: 12 }}>
             <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
-            Editing…
+            Thinking…
           </div>
         )}
       </div>
 
+      {/* credits strip */}
+      {(creditsUsed > 0 || messages.length > 0) && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '5px 16px',
+            fontSize: 10.5,
+            color: colors.textGhost,
+          }}
+        >
+          <span>Total Credits Used&nbsp;&nbsp;{creditsUsed.toFixed(3)}</span>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 600,
+              color: '#ffbd45',
+              background: 'rgba(255,189,69,.12)',
+              padding: '1px 7px',
+              borderRadius: 999,
+            }}
+          >
+            Early Beta
+          </span>
+        </div>
+      )}
+
       {/* composer */}
-      <div style={{ padding: '12px 16px 8px', borderTop: `1px solid ${colors.border7}` }}>
+      <div style={{ padding: '6px 16px 8px' }}>
         <div
           style={{
             background: colors.card,
             border: `1px solid ${colors.border9}`,
             borderRadius: 12,
             padding: '10px 12px',
+            position: 'relative',
           }}
         >
+          {/* mention chips */}
+          {mentions.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 7 }}>
+              {mentions.map((m) => (
+                <MentionChip key={m.clipId} m={m} onRemove={() => removeMention(m.clipId)} />
+              ))}
+            </div>
+          )}
+
           <textarea
             rows={2}
             placeholder="Ask Deep Video Agent to edit your video…"
@@ -299,51 +443,125 @@ export function AgentChat() {
               color: colors.text,
               fontSize: 13,
               lineHeight: 1.45,
-              minHeight: 38,
+              minHeight: 36,
               resize: 'none',
             }}
           />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
             <span
-              title="Which brain answers: OpenRouter (tencent/hy3:free) → local Ollama → offline command mode"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: colors.chip,
-                border: `1px solid ${colors.border8}`,
-                borderRadius: 8,
-                padding: '5px 10px',
-                color: colors.textSoft,
-                fontSize: 12,
-              }}
+              title={`Which brain answers — currently ${backend ? BACKEND_LABEL[backend] ?? backend : 'hy3 (OpenRouter) → Ollama → command mode'}`}
+              style={{ ...pickerChip, cursor: 'default' }}
             >
               <Bot size={14} color={colors.textDim} />
-              {backend ? BACKEND_LABEL[backend] ?? 'Agent' : 'Agent'}
+              Agent
+              <ChevronDown size={12} color={colors.textGhost} />
             </span>
-            <button
-              onClick={() => void send()}
-              disabled={busy || !input.trim()}
-              className="hv-blue"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: colors.accent,
-                border: 'none',
-                color: '#fff',
-                display: 'grid',
-                placeItems: 'center',
-                cursor: 'pointer',
-                opacity: busy || !input.trim() ? 0.5 : 1,
-              }}
-            >
-              <ArrowUp size={16} />
-            </button>
+
+            {/* effort picker */}
+            <span style={{ position: 'relative' }}>
+              <button onClick={() => setEffortOpen((v) => !v)} style={pickerChip}>
+                <span style={{ color: '#e8a33d', fontWeight: 600 }}>
+                  {effort === 'fast' ? 'Fast' : 'Smart'}
+                </span>
+                <ChevronDown size={12} color={colors.textGhost} />
+              </button>
+              {effortOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 30,
+                    left: -8,
+                    width: 230,
+                    background: colors.raised,
+                    border: `1px solid ${colors.border10}`,
+                    borderRadius: 12,
+                    padding: 6,
+                    boxShadow: '0 18px 44px rgba(0,0,0,.55)',
+                    zIndex: 9,
+                  }}
+                >
+                  <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', color: colors.textGhost, padding: '5px 9px 3px' }}>
+                    EFFORT
+                  </div>
+                  {(
+                    [
+                      { key: 'fast', name: 'Fast', desc: 'Great for everyday edits · saves credits' },
+                      { key: 'smart', name: 'Smart', desc: 'Deeper work on complex edits · costs more credits' },
+                    ] as const
+                  ).map((opt) => (
+                    <div
+                      key={opt.key}
+                      className="hv-dark"
+                      onClick={() => {
+                        setEffort(opt.key);
+                        setEffortOpen(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 8,
+                        padding: '7px 9px',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12.5, color: colors.textSoft, fontWeight: 600 }}>{opt.name}</div>
+                        <div style={{ fontSize: 10.5, color: colors.textGhost, lineHeight: 1.4 }}>{opt.desc}</div>
+                      </div>
+                      {effort === opt.key && <span style={{ color: '#e8a33d', fontSize: 12 }}>✓</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </span>
+
+            <div style={{ flex: 1 }} />
+
+            {busy ? (
+              <button
+                onClick={stop}
+                title="Stop"
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  background: colors.raised,
+                  border: `1px solid ${colors.border9}`,
+                  color: colors.textMid,
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Square size={12} fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                onClick={() => void send()}
+                disabled={!input.trim() && mentions.length === 0}
+                className="hv-blue"
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  background: colors.accent,
+                  border: 'none',
+                  color: '#fff',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                  opacity: !input.trim() && mentions.length === 0 ? 0.45 : 1,
+                }}
+              >
+                <ArrowUp size={15} />
+              </button>
+            )}
           </div>
         </div>
         <div style={{ fontSize: 10, color: colors.textGhost, textAlign: 'center', marginTop: 6 }}>
-          Deep Video Agent is in early Beta and may make mistakes.
+          Deep Video Agent is in early Beta. Results may be unstable.
         </div>
       </div>
     </div>

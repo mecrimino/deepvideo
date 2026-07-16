@@ -3,14 +3,19 @@ import {
   ArrowUpRight,
   Check,
   ChevronDown,
+  CircleAlert,
   FileText,
   Loader2,
   Mic,
+  Play,
   Plus,
+  Trash2,
   X,
 } from 'lucide-react';
+import type { PipelineStage } from '@deep-video/shared';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ProjectSummary } from '@deep-video/shared';
+import { UserMenu } from '../auth/UserMenu';
 import { Avatar } from '../components/Avatar';
 import { GradientLogo } from '../components/GradientLogo';
 import { ModelModal } from '../components/ModelModal';
@@ -19,7 +24,7 @@ import { sampleScripts } from '../data/sample-scripts';
 import { getChannelName, setChannelName, subscribeChannel } from '../lib/channel';
 import { getCredits, subscribeCredits } from '../lib/credits';
 import { formatDuration } from '../lib/format';
-import { listProjects, loadProject } from '../services/project';
+import { deleteProject, listProjects, loadProject } from '../services/project';
 import { uploadAudio } from '../services/transcribe';
 import { useAppStore } from '../store/useAppStore';
 import { fileUrl, useEditorStore } from '../store/useEditorStore';
@@ -43,6 +48,15 @@ function dateTag(iso: string): string {
     .toUpperCase();
 }
 
+const STAGE_SHORT: Record<PipelineStage, string> = {
+  segment: 'Segmenting the script…',
+  queries: 'Writing keywords…',
+  retrieve: 'Searching footage…',
+  rerank: 'Ranking candidates…',
+  pick: 'Picking clips…',
+  history: 'Downloading & assembling…',
+};
+
 export function HomeScreen() {
   const prompt = useAppStore((s) => s.prompt);
   const setPrompt = useAppStore((s) => s.setPrompt);
@@ -56,6 +70,9 @@ export function HomeScreen() {
   const togglePlus = useAppStore((s) => s.togglePlus);
   const openModel = useAppStore((s) => s.openModel);
   const go = useAppStore((s) => s.go);
+  const gen = useAppStore((s) => s.gen);
+  const cancelGeneration = useAppStore((s) => s.cancelGeneration);
+  const openGeneration = useAppStore((s) => s.openGeneration);
 
   const [showScript, setShowScript] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -70,11 +87,34 @@ export function HomeScreen() {
 
   // Real saved projects from the server.
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
-  useEffect(() => {
+  const refreshProjects = () =>
     listProjects()
       .then((r) => setProjects(r.projects))
       .catch(() => setProjects([]));
+  useEffect(() => {
+    void refreshProjects();
   }, []);
+
+  // Two-click delete confirmation (second click within 3s deletes).
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const t = window.setTimeout(() => setPendingDelete(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [pendingDelete]);
+
+  const removeProject = async (id: string) => {
+    if (pendingDelete !== id) {
+      setPendingDelete(id);
+      return;
+    }
+    setPendingDelete(null);
+    try {
+      await deleteProject(id);
+    } finally {
+      void refreshProjects();
+    }
+  };
 
   const pickAudio = async (file: File) => {
     setUploading(true);
@@ -176,7 +216,7 @@ export function HomeScreen() {
             />
             {credits.toLocaleString()} credits
           </div>
-          <Avatar size={34} />
+          <UserMenu />
         </div>
       </div>
 
@@ -505,7 +545,7 @@ export function HomeScreen() {
             </span>
           </div>
 
-          {projects && projects.length === 0 && (
+          {projects && projects.length === 0 && !gen && (
             <div
               style={{
                 border: `1px dashed ${colors.border10}`,
@@ -521,6 +561,136 @@ export function HomeScreen() {
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
+            {/* live background generation card */}
+            {gen && (
+              <div
+                onClick={() => void openGeneration()}
+                className="hv-card"
+                title={
+                  gen.status === 'done'
+                    ? 'Finished — click to open in the editor'
+                    : gen.status === 'failed'
+                      ? (gen.error ?? 'Generation failed')
+                      : 'Generating — click to watch progress'
+                }
+                style={{
+                  background: colors.panel,
+                  border:
+                    gen.status === 'failed'
+                      ? '1px solid rgba(228,106,106,.4)'
+                      : gen.status === 'done'
+                        ? '1px solid rgba(111,208,142,.4)'
+                        : '1px solid rgba(47,107,255,.45)',
+                  borderRadius: 14,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                }}
+              >
+                <div
+                  style={{
+                    aspectRatio: '16/10',
+                    background: gradients.placeholder,
+                    position: 'relative',
+                    display: 'grid',
+                    placeItems: 'center',
+                  }}
+                >
+                  {gen.status === 'done' ? (
+                    <span
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: 'rgba(111,208,142,.16)',
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <Play size={18} color="#6fd08e" />
+                    </span>
+                  ) : gen.status === 'failed' ? (
+                    <CircleAlert size={26} color="#e46a6a" />
+                  ) : (
+                    <Loader2
+                      size={26}
+                      color={colors.accent}
+                      style={{ animation: 'spin 1s linear infinite' }}
+                    />
+                  )}
+                  {(gen.status === 'running' || gen.status === 'starting') && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void cancelGeneration();
+                      }}
+                      title="Cancel generation"
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        background: 'rgba(0,0,0,.6)',
+                        border: '1px solid rgba(228,106,106,.5)',
+                        color: '#e48a8a',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 9,
+                      bottom: 8,
+                      fontFamily: fontMono,
+                      fontSize: 10,
+                      color:
+                        gen.status === 'done'
+                          ? '#6fd08e'
+                          : gen.status === 'failed'
+                            ? '#e48a8a'
+                            : '#6f9bff',
+                      letterSpacing: '.04em',
+                    }}
+                  >
+                    {gen.status === 'done'
+                      ? 'READY'
+                      : gen.status === 'failed'
+                        ? 'FAILED'
+                        : 'GENERATING'}
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px 12px' }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: colors.textSoft,
+                      lineHeight: 1.35,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {gen.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: colors.textGhost, marginTop: 4 }}>
+                    {gen.status === 'done'
+                      ? 'Finished — click to open'
+                      : gen.status === 'failed'
+                        ? (gen.error ?? 'Failed').slice(0, 48)
+                        : STAGE_SHORT[gen.stage ?? 'segment']}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {(projects ?? []).slice(0, 8).map((p) => (
               <div
                 key={p.id}
@@ -573,6 +743,30 @@ export function HomeScreen() {
                       {formatDuration(p.durationSec)}
                     </div>
                   )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void removeProject(p.id);
+                    }}
+                    title={pendingDelete === p.id ? 'Click again to delete permanently' : 'Delete project'}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      background: pendingDelete === p.id ? 'rgba(228,106,106,.9)' : 'rgba(0,0,0,.55)',
+                      border: `1px solid ${pendingDelete === p.id ? '#e46a6a' : 'rgba(255,255,255,.15)'}`,
+                      color: pendingDelete === p.id ? '#fff' : colors.textDim,
+                      display: 'grid',
+                      placeItems: 'center',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
                 <div style={{ padding: '10px 12px 12px' }}>
                   <div

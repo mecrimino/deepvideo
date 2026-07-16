@@ -16,7 +16,7 @@ export class ApiRequestError extends Error {
 
 export async function fetchJson<TResponse, TBody = unknown>(
   path: string,
-  init?: { method?: 'GET' | 'POST'; body?: TBody },
+  init?: { method?: 'GET' | 'POST' | 'DELETE'; body?: TBody },
 ): Promise<TResponse> {
   const res = await fetch(path, {
     method: init?.method ?? (init?.body ? 'POST' : 'GET'),

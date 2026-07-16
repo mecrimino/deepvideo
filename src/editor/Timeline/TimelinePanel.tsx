@@ -26,6 +26,75 @@ function TrackRow({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Floating "Ctrl L · Add to Deep Video Agent" pill anchored to the selected
+ * clip (reference behavior): clicking attaches the clip to the agent composer
+ * as a mention chip.
+ */
+function AddToAgentPill() {
+  const timeline = useEditorStore((s) => s.timeline);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const pxPerSec = useEditorStore((s) => s.pxPerSec);
+  const addMentionFromSelection = useEditorStore((s) => s.addMentionFromSelection);
+  const showChat = useAppStore((s) => s.showChat);
+  const toggleChat = useAppStore((s) => s.toggleChat);
+
+  const clip = timeline?.tracks
+    .find((t) => t.kind === 'video')
+    ?.clips.find((c) => c.id === selectedClipId);
+  if (!clip) return null;
+
+  // Anchored just below the selected clip on the film track (14px lane inset).
+  const left = 14 + clip.range.endSec * pxPerSec - 4;
+
+  return (
+    <button
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => {
+        addMentionFromSelection();
+        if (!showChat) toggleChat();
+      }}
+      title="Attach this clip to your agent prompt (Ctrl+L)"
+      style={{
+        position: 'absolute',
+        left,
+        top: 48,
+        transform: 'translateX(-100%)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '5px 10px 5px 6px',
+        borderRadius: 8,
+        background: '#0d0d10',
+        border: `1px solid ${colors.border10}`,
+        boxShadow: '0 8px 22px rgba(0,0,0,.55)',
+        color: '#fff',
+        fontSize: 11.5,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        zIndex: 6,
+        cursor: 'pointer',
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 10,
+          fontWeight: 500,
+          color: colors.textDim,
+          background: 'rgba(255,255,255,.07)',
+          border: `1px solid ${colors.border9}`,
+          borderRadius: 5,
+          padding: '2px 6px',
+        }}
+      >
+        ctrl L
+      </span>
+      Add to Deep Video Agent
+    </button>
+  );
+}
+
 export function TimelinePanel() {
   const timeline = useEditorStore((s) => s.timeline);
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
@@ -72,6 +141,7 @@ export function TimelinePanel() {
               </TrackRow>
             </div>
             <Playhead />
+            <AddToAgentPill />
           </div>
         </div>
       </div>

@@ -48,6 +48,8 @@ export interface MiniRunInput {
   getTranscript?: () => Promise<import('@deep-video/shared').Transcript>;
   settings?: Partial<mini.MiniSettings>;
   onProgress?: (run: PipelineRun) => void;
+  /** Cooperative cancellation (checked at stage/segment boundaries + downloads). */
+  shouldStop?: () => boolean;
 }
 
 async function downloadCandidate(
@@ -197,6 +199,7 @@ export async function runMiniPipeline(deps: MiniServerDeps, input: MiniRunInput)
         : undefined,
       settings: input.settings,
       onProgress: input.onProgress,
+      shouldStop: input.shouldStop,
     },
   );
 
@@ -209,7 +212,9 @@ export async function runMiniPipeline(deps: MiniServerDeps, input: MiniRunInput)
     historyStage.startedAt = new Date().toISOString();
     emit();
 
+    if (input.shouldStop?.()) throw new Error('Cancelled by user');
     const assets = await downloadPicked(picks, deps, emit);
+    if (input.shouldStop?.()) throw new Error('Cancelled by user');
     const captions = captionsFromBeats(run.beats ?? []);
     run.timeline = assembleTimeline(
       picks,

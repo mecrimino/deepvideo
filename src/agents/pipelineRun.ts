@@ -1,18 +1,30 @@
 /**
- * UI side of the agent pipeline: start runs and stream stage progress.
- * The processing screen will consume this once POST /api/pipeline/run exists;
- * today it plays the design's fixed step list on a timer.
+ * UI side of the agent pipeline: start runs, poll stage progress, cancel.
+ * Runs execute server-side and keep going regardless of which screen is open;
+ * useAppStore owns the polling loop and the background-generation state.
  */
 
-import type { PipelineRun, RunPipelineRequest, RunPipelineResponse } from '@deep-video/shared';
+import type {
+  CancelRunResponse,
+  PipelineRun,
+  RunPipelineRequest,
+  RunPipelineResponse,
+} from '@deep-video/shared';
 import { fetchJson } from '../lib/fetchJson';
 
-/** Kick off a pipeline run on the server (stubbed: throws ApiRequestError 501). */
+/** Kick off a pipeline run; returns immediately with the initial run state. */
 export function startRun(req: RunPipelineRequest): Promise<RunPipelineResponse> {
   return fetchJson<RunPipelineResponse, RunPipelineRequest>('/api/pipeline/run', { body: req });
 }
 
-/** Fetch the latest state of a run (poll until SSE streaming is implemented). */
+/** Fetch the latest state of a run (polled while it works). */
 export function getRun(id: string): Promise<PipelineRun> {
   return fetchJson<PipelineRun>(`/api/pipeline/run/${encodeURIComponent(id)}`);
+}
+
+/** Cancel an in-flight run; the pipeline stops at its next checkpoint. */
+export function cancelRun(id: string): Promise<CancelRunResponse> {
+  return fetchJson<CancelRunResponse>(`/api/pipeline/run/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+  });
 }

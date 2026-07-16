@@ -65,6 +65,16 @@ function recomputeDuration(t: Timeline): void {
   t.durationSec = end;
 }
 
+/** A clip the user attached to the agent chat ("Add to Deep Video Agent"). */
+export interface ChatMention {
+  clipId: string;
+  /** 1-based index on the video track (what the agent calls "clip N"). */
+  index: number;
+  label: string;
+  /** Thumbnail URL when the clip's asset has one. */
+  thumb?: string;
+}
+
 interface EditorState {
   /** The open document. */
   projectId: string | null;
@@ -72,6 +82,9 @@ interface EditorState {
   timeline: Timeline | null;
   /** Library assets by id (thumbnails, durations, paths). */
   assets: Record<string, ClipAsset>;
+
+  /** Clips attached to the agent composer as mention chips. */
+  chatMentions: ChatMention[];
 
   /* playback */
   playing: boolean;
@@ -114,6 +127,11 @@ interface EditorState {
   selectClip: (id: string | null) => void;
   selectCue: (id: string | null) => void;
   setActivePanel: (p: 'none' | 'media' | 'text') => void;
+
+  /* ---- agent chat mentions ---- */
+  addMentionFromSelection: () => void;
+  removeMention: (clipId: string) => void;
+  clearMentions: () => void;
 
   /* ---- edits (all push history) ---- */
   moveClip: (clipId: string, newStartSec: number) => void;
@@ -179,6 +197,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectedClipId: null,
     selectedCueId: null,
     activePanel: 'none',
+    chatMentions: [],
 
     past: [],
     future: [],
@@ -255,6 +274,35 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectClip: (id) => set({ selectedClipId: id, selectedCueId: null }),
     selectCue: (id) => set({ selectedCueId: id, selectedClipId: null }),
     setActivePanel: (p) => set({ activePanel: p }),
+
+    /* ------------------------- agent mentions -------------------------- */
+
+    addMentionFromSelection: () => {
+      const { timeline, selectedClipId, assets, chatMentions } = get();
+      if (!timeline || !selectedClipId) return;
+      const clips = sortedVideoClips(timeline);
+      const index = clips.findIndex((c) => c.id === selectedClipId);
+      if (index < 0) return;
+      const clip = clips[index];
+      if (chatMentions.some((m) => m.clipId === clip.id)) return; // already attached
+      const asset = clip.source.kind === 'asset' ? assets[clip.source.assetId] : undefined;
+      set({
+        chatMentions: [
+          ...chatMentions,
+          {
+            clipId: clip.id,
+            index: index + 1,
+            label: clip.label?.trim() || `Clip ${index + 1}`,
+            thumb: asset?.thumbPath ? fileUrl(asset.thumbPath) : undefined,
+          },
+        ],
+      });
+    },
+
+    removeMention: (clipId) =>
+      set((s) => ({ chatMentions: s.chatMentions.filter((m) => m.clipId !== clipId) })),
+
+    clearMentions: () => set({ chatMentions: [] }),
 
     /* ------------------------------ edits ----------------------------- */
 

@@ -24,6 +24,15 @@ export async function saveProject(project: Project): Promise<string> {
   return savedAt;
 }
 
+export async function deleteProject(id: string): Promise<boolean> {
+  try {
+    await fs.unlink(fileFor(id));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function loadProject(id: string): Promise<Project | null> {
   try {
     const raw = await fs.readFile(fileFor(id), 'utf8');
