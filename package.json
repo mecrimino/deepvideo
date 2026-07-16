@@ -1,0 +1,36 @@
+{
+  "name": "deep-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first, retrieval-first video assembly: script/audio -> beats -> clip retrieval -> timeline -> editor.",
+  "workspaces": [
+    "shared",
+    "model",
+    "server"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "server": "npm run dev -w @deep-video/server",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && npm run typecheck --workspaces --if-present"
+  },
+  "dependencies": {
+    "lucide-react": "^0.400.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@deep-video/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local I/O services: Fastify API, sqlite-vec clip index, CLIP embeddings, whisper.cpp transcription, ffmpeg render.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@deep-video/shared": "*",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.16.2"
+  }
+}

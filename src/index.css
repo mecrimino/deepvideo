@@ -1,0 +1,102 @@
+/* Global styles — ported from Deep Video.dc.html's helmet block. */
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+body {
+  background: #08080a;
+  font-family: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #ececee;
+}
+a {
+  color: #7aa2ff;
+  text-decoration: none;
+}
+a:hover {
+  color: #a9c3ff;
+}
+svg.lucide {
+  stroke-width: 1.75;
+  display: block;
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a30;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+input,
+textarea,
+button {
+  font-family: inherit;
+}
+textarea {
+  resize: none;
+  outline: none;
+}
+button {
+  cursor: pointer;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Hover utilities — one class per `style-hover` variant in the design file. */
+.hv-dark:hover {
+  background: #26262c !important;
+}
+.hv-blue:hover {
+  background: #4880ff !important;
+}
+.hv-row:hover {
+  background: #2b2b31 !important;
+}
+.hv-panel:hover {
+  background: #1b1b1f !important;
+}
+.hv-input:hover {
+  background: #1d1d22 !important;
+}
+.hv-rail:hover {
+  background: #1b1b1f !important;
+  color: #ececee !important;
+}
+.hv-card:hover {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+.hv-theme:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}

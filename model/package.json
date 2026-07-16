@@ -1,0 +1,18 @@
+{
+  "name": "@deep-video/model",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The agent pipeline: segmentation, query building, retrieval, reranking, pick decisions, timeline assembly.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@deep-video/shared": "*"
+  }
+}
