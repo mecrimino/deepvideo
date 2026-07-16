@@ -48,3 +48,13 @@ export interface Embedder {
   embedText(text: string): Promise<Float32Array>;
   embedImage(imagePath: string): Promise<Float32Array>;
 }
+
+/**
+ * Persistence seam for pipeline runs (stage6). Implemented by server/ as JSON
+ * files under DATA_DIR and injected; model/ itself never touches disk.
+ */
+export interface RunStore {
+  save(run: import('@deep-video/shared').PipelineRun): Promise<void>;
+  load(id: string): Promise<import('@deep-video/shared').PipelineRun | null>;
+  list(): Promise<Pick<import('@deep-video/shared').PipelineRun, 'id' | 'createdAt' | 'status'>[]>;
+}

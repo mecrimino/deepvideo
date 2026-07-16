@@ -4,7 +4,7 @@ Fastify API on **http://localhost:8787** wrapping everything that touches disk,
 native binaries, or models. The frontend proxies `/api` here (vite.config.ts).
 All storage is local files under `server/data/` (gitignored).
 
-## Modules (all STUBS except the route table)
+## Modules (IMPLEMENTED except whisper transcription and Piper TTS)
 
 - `src/index.ts` — Fastify entry; routes registered + typed, handlers return
   501 `{ notImplemented: true }` until their module is built. `/api/health` works.

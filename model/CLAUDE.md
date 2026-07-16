@@ -4,7 +4,7 @@ Turns a script/transcript into a timeline of matched clips. Pure logic + LLM
 calls; **no native deps, no file/db access** — storage and embedding are
 injected as interfaces so this package is testable and swappable.
 
-## Pipeline (all currently STUBS throwing NotImplementedError)
+## Pipeline (IMPLEMENTED — LLM-assisted with heuristic fallbacks when Ollama is offline)
 
 1. `stage1_segment.ts` — script/transcript → `Beat[]`
 2. `stage2_queries.ts` — beat → `{said, shown}` queries (CLIP text space)
@@ -14,6 +14,14 @@ injected as interfaces so this package is testable and swappable.
 6. `stage6_history.ts` — persist runs as JSON under DATA_DIR
 
 `pipeline.ts` orchestrates 1→6, then `timeline.assembleFromPicks` builds the EDL.
+
+## Deep Video v1 Mini (`src/deepvideov1mini/` — exported as `mini`)
+
+The full-video creation model (prompt/script → verified stock B-roll timeline)
+per the 7-stage clip-matching spec: Groq niche detection, OpenRouter keyword
+per segment, Pexels+Pixabay pooling, real-CLIP re-ranking, confidence threshold
+with `review` flags, anti-repetition log. Read `src/deepvideov1mini/CLAUDE.md`
+before working there; server backends live in `server/src/mini/`.
 
 ## Public interface (src/index.ts)
 

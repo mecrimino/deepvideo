@@ -12,8 +12,10 @@ export const DEFAULT_SETTINGS: PipelineSettings = {
   /**
    * Minimum combined match score (0..1) for stage5 to accept a clip.
    * Below this the beat gets a GenerationSlot instead of a bad clip.
+   * Calibrated for the v1 hashing embedder (keyword-overlap cosine);
+   * revisit when CLIP lands (CLIP cosines run lower still, ~0.2-0.35).
    */
-  matchThreshold: 0.62,
+  matchThreshold: 0.35,
   /** Weight of visualScore vs textScore when combining in stage4. */
   visualWeight: 0.55,
   /** Beats longer than this are split by stage1. */

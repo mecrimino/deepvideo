@@ -3,6 +3,8 @@
 export interface ProductionModel {
   name: string;
   credits: string;
+  /** Numeric rate used for real cost estimates (credits per rendered minute). */
+  rateCreditsPerMin: number;
   blurb: string;
   desc: string;
   popular: boolean;
@@ -12,6 +14,7 @@ export const models: ProductionModel[] = [
   {
     name: 'Deep Video v1 Mini',
     credits: '40.0 Credits/min',
+    rateCreditsPerMin: 40,
     blurb: 'Cinematic imagery, motion graphics, immersive visuals.',
     desc: 'An expert engine for stylized visual composition. The Mini model intelligently sequences high-quality images and dynamic motion graphics, applying smart pacing that aligns with your script for fast, high-impact output.',
     popular: false,
@@ -19,6 +22,7 @@ export const models: ProductionModel[] = [
   {
     name: 'Deep Video v1 Pro',
     credits: '55.0 Credits/min',
+    rateCreditsPerMin: 55,
     blurb: 'Mixed media fusion, creator standard, all-rounder.',
     desc: 'The flagship all-rounder. Pro fuses stock footage, generated imagery, and motion graphics with narrative-aware editing — the most balanced choice for any content category.',
     popular: true,

@@ -119,6 +119,14 @@ export interface TimelineClip {
   range: TimeRange;
   /** Optional user label shown in the editor. */
   label?: string;
+  /**
+   * Set by Deep Video v1 Mini when the best match scored below the confidence
+   * threshold: the clip is placed but flagged (yellow outline) for a quick
+   * manual swap instead of shipping a weak pick silently.
+   */
+  review?: boolean;
+  /** CLIP match score (0..1 cosine) recorded by the matching pipeline. */
+  matchScore?: number;
 }
 
 export type TrackKind = 'video' | 'overlay' | 'audio' | 'captions';

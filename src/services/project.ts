@@ -1,7 +1,17 @@
 /** Client for project save/load. Server side is stubbed (501) for now. */
 
-import type { LoadProjectResponse, SaveProjectRequest, SaveProjectResponse } from '@deep-video/shared';
+import type {
+  ListProjectsResponse,
+  LoadProjectResponse,
+  SaveProjectRequest,
+  SaveProjectResponse,
+} from '@deep-video/shared';
 import { fetchJson } from '../lib/fetchJson';
+
+/** Saved projects, newest first — feeds Home's "Recent Generations". */
+export function listProjects(): Promise<ListProjectsResponse> {
+  return fetchJson<ListProjectsResponse>('/api/projects');
+}
 
 export function saveProject(req: SaveProjectRequest): Promise<SaveProjectResponse> {
   return fetchJson<SaveProjectResponse, SaveProjectRequest>('/api/project', { body: req });

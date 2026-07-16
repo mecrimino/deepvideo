@@ -3,12 +3,13 @@ import { animNames } from '../../data/anims';
 import { useAppStore, type AnimTab } from '../../store/useAppStore';
 import { colors } from '../../theme';
 
-/** Settings panel: layout preset + Enter/Exit animation grid. */
+/** Floating settings card: layout preset + Enter/Exit animation grid. */
 export function SettingsPanel() {
   const animIdx = useAppStore((s) => s.animIdx);
   const animTab = useAppStore((s) => s.animTab);
   const selectAnim = useAppStore((s) => s.selectAnim);
   const setAnimTab = useAppStore((s) => s.setAnimTab);
+  const closeSettings = useAppStore((s) => s.closeSettings);
 
   const tabStyle = (tab: AnimTab): React.CSSProperties => ({
     flex: 1,
@@ -18,19 +19,25 @@ export function SettingsPanel() {
     fontSize: 12.5,
     fontWeight: 600,
     cursor: 'pointer',
-    background: animTab === tab ? colors.accent : 'transparent',
+    background: animTab === tab ? '#2e2e35' : 'transparent',
     color: animTab === tab ? '#fff' : colors.textFaint,
   });
 
   return (
     <div
       style={{
-        width: 262,
-        flexShrink: 0,
-        borderRight: `1px solid ${colors.border7}`,
-        overflowY: 'auto',
-        background: colors.bgBar,
+        position: 'absolute',
+        left: 12,
+        top: 12,
+        zIndex: 6,
+        width: 280,
+        background: '#101014',
+        border: `1px solid ${colors.border8}`,
+        borderRadius: 14,
         padding: '15px 14px',
+        boxShadow: '0 24px 60px rgba(0,0,0,.55)',
+        maxHeight: 'calc(100% - 24px)',
+        overflowY: 'auto',
       }}
     >
       <div
@@ -38,7 +45,7 @@ export function SettingsPanel() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 18,
+          marginBottom: 16,
         }}
       >
         <div
@@ -47,7 +54,22 @@ export function SettingsPanel() {
           <Settings size={16} color={colors.textDim} />
           Settings
         </div>
-        <X size={15} color={colors.textGhost} />
+        <button
+          onClick={closeSettings}
+          className="hv-rail"
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 7,
+            background: 'transparent',
+            border: 'none',
+            color: colors.textGhost,
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <X size={15} />
+        </button>
       </div>
 
       <div style={{ fontSize: 12, color: colors.textFaint, marginBottom: 7 }}>Layout Preset</div>
@@ -64,7 +86,7 @@ export function SettingsPanel() {
           padding: '9px 12px',
           color: colors.textSoft,
           fontSize: 13,
-          marginBottom: 20,
+          marginBottom: 18,
         }}
       >
         None
@@ -93,50 +115,58 @@ export function SettingsPanel() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-        {animNames.map((name, i) => (
-          <button
-            key={name}
-            onClick={() => selectAnim(i)}
-            className="hv-input"
-            style={{
-              position: 'relative',
-              background: colors.card,
-              border: `1px solid ${colors.border8}`,
-              borderRadius: 9,
-              padding: '9px 2px 6px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 5,
-            }}
-          >
-            {i === animIdx && (
-              <div
+        {animNames.map((name, i) => {
+          const selected = i === animIdx;
+          return (
+            <button
+              key={name}
+              onClick={() => selectAnim(i)}
+              className="hv-input"
+              style={{
+                position: 'relative',
+                background: colors.card,
+                border: `1px solid ${colors.border8}`,
+                borderRadius: 9,
+                padding: '9px 2px 6px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              {selected && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    border: `1.5px solid ${colors.accent}`,
+                    borderRadius: 9,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+              <span
                 style={{
-                  position: 'absolute',
-                  inset: 0,
-                  border: `1.5px solid ${colors.accent}`,
-                  borderRadius: 9,
-                  pointerEvents: 'none',
+                  width: 15,
+                  height: 15,
+                  borderRadius: '50%',
+                  border: `1.5px solid ${selected ? '#6f9bff' : '#7f7f88'}`,
+                  display: 'inline-block',
                 }}
               />
-            )}
-            <span
-              style={{
-                width: 15,
-                height: 15,
-                borderRadius: '50%',
-                border: '1.5px solid #7f7f88',
-                display: 'inline-block',
-              }}
-            />
-            <span
-              style={{ fontSize: 9.5, color: '#a7a7ad', lineHeight: 1, textAlign: 'center' }}
-            >
-              {name}
-            </span>
-          </button>
-        ))}
+              <span
+                style={{
+                  fontSize: 9.5,
+                  color: selected ? '#6f9bff' : '#a7a7ad',
+                  lineHeight: 1,
+                  textAlign: 'center',
+                }}
+              >
+                {name}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

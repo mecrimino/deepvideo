@@ -11,6 +11,10 @@ import type { MatchCandidate, PipelineRun, PipelineSettings } from './pipeline.j
 export interface HealthResponse {
   ok: boolean;
   version: string;
+  /** Capability report so the UI can explain what is available locally. */
+  ffmpeg?: boolean;
+  ollama?: boolean;
+  whisper?: boolean;
 }
 
 export interface ApiError {
@@ -63,10 +67,34 @@ export interface RunPipelineRequest {
   script?: string;
   audioPath?: string;
   settings?: Partial<PipelineSettings>;
+  /**
+   * Which production model runs the generation:
+   *  - 'mini' — Deep Video v1 Mini (7-stage stock B-roll matching engine)
+   *  - 'pro'  — the local-library pipeline (default)
+   */
+  model?: 'mini' | 'pro';
 }
 
 export interface RunPipelineResponse {
   run: PipelineRun;
+}
+
+/* --------------------------------- media --------------------------------- */
+
+export interface UploadMediaResponse {
+  asset: ClipAsset;
+}
+
+/** POST /api/audio/upload — narration audio for a generation run. */
+export interface UploadAudioResponse {
+  /** DATA_DIR-relative path; pass as RunPipelineRequest.audioPath. */
+  path: string;
+  durationSec: number;
+  name: string;
+}
+
+export interface ListClipsResponse {
+  assets: ClipAsset[];
 }
 
 /* --------------------------------- render -------------------------------- */
@@ -83,6 +111,40 @@ export interface RenderResponse {
   durationSec: number;
 }
 
+/** Async render job — POST /api/render returns it, GET /api/render/:id polls it. */
+export interface RenderJob {
+  id: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  /** 0..1 while running. */
+  progress: number;
+  message?: string;
+  /** Set when done: DATA_DIR-relative path and a URL the browser can fetch. */
+  outputPath?: string;
+  url?: string;
+  durationSec?: number;
+  error?: string;
+}
+
+export interface StartRenderResponse {
+  job: RenderJob;
+}
+
+/* ------------------------------- agent chat ------------------------------- */
+
+export interface AgentChatRequest {
+  message: string;
+  timeline: Timeline;
+}
+
+export interface AgentChatResponse {
+  reply: string;
+  /** Present when the agent edited the timeline. */
+  timeline?: Timeline;
+  actions: string[];
+  /** Which brain answered: 'openrouter' | 'ollama' | 'commands'. */
+  backend?: string;
+}
+
 /* --------------------------------- project ------------------------------- */
 
 export interface SaveProjectRequest {
@@ -96,4 +158,19 @@ export interface SaveProjectResponse {
 
 export interface LoadProjectResponse {
   project: Project;
+}
+
+/** Card-sized project summary for listings (Home "Recent Generations"). */
+export interface ProjectSummary {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  durationSec?: number;
+  /** DATA_DIR-relative thumbnail of the project's first clip (serve via /files/). */
+  thumb?: string;
+}
+
+export interface ListProjectsResponse {
+  projects: ProjectSummary[];
 }

@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import { models } from '../data/models';
 import { themes } from '../data/themes';
-import { useAppStore } from '../store/useAppStore';
+import { estimateCostCredits, estimateLengthSec } from '../lib/credits';
+import { formatDuration } from '../lib/format';
+import { effectiveScript, useAppStore } from '../store/useAppStore';
 import { colors, gradients } from '../theme';
 
 export function SetupScreen() {
@@ -25,10 +27,21 @@ export function SetupScreen() {
   const sel = models[modelIdx];
   const themeName = themes[themeIdx].name;
 
+  // Real estimate: narration duration when audio is attached, otherwise the
+  // script/prompt length at narration pace; cost = model rate × minutes.
+  const audio = useAppStore((s) => s.audio);
+  const lengthSec = estimateLengthSec({
+    script: audio ? undefined : effectiveScript(useAppStore.getState()),
+    audioDurationSec: audio?.durationSec,
+  });
+  const totalCredits = estimateCostCredits(sel.rateCreditsPerMin, lengthSec);
+  const lengthLabel = `~${formatDuration(lengthSec)} min`;
+
   const costRows = [
     { k: 'Production model', v: sel.name.replace('Deep Video ', '') },
     { k: 'Theme', v: themeName.replace(' theme', '') },
-    { k: 'Estimated length', v: '~2 min' },
+    { k: 'Input', v: audio ? `Narration audio (${formatDuration(audio.durationSec)})` : 'Script / prompt' },
+    { k: 'Estimated length', v: lengthLabel },
     { k: 'Rate', v: sel.credits },
   ];
 
@@ -378,7 +391,7 @@ export function SetupScreen() {
             >
               <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
               <span style={{ fontSize: 18, fontWeight: 700, color: colors.accent }}>
-                110 credits
+                {totalCredits} credits
               </span>
             </div>
             <div

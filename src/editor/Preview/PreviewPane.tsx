@@ -1,69 +1,254 @@
-import { Maximize } from 'lucide-react';
-import { colors, fontMono, gradients } from '../../theme';
+/**
+ * Center preview: real playback of the timeline. Shows the video-track clip
+ * under the playhead (seeked into its source in/out window), narration audio
+ * when the timeline has one, caption overlay, and a working fullscreen button.
+ * The requestAnimationFrame clock that advances the playhead lives here.
+ */
 
-/** Center 16:9 preview. Placeholder frame until real playback is wired in. */
+import { Maximize, Sparkles } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { clipAtTime, cueAtTime, fileUrl, useEditorStore } from '../../store/useEditorStore';
+import { colors } from '../../theme';
+
+const IMAGE_RE = /\.(png|jpe?g|webp|bmp|gif)$/i;
+
+/** Keep a media element's clock glued to the project clock. */
+function useMediaSync(
+  ref: React.RefObject<HTMLVideoElement | HTMLAudioElement>,
+  wantSec: number,
+  playing: boolean,
+  speed: number,
+  muted: boolean,
+) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.muted = muted;
+    el.playbackRate = speed;
+    const drift = Math.abs(el.currentTime - wantSec);
+    if ((playing && drift > 0.3) || (!playing && drift > 0.03)) {
+      el.currentTime = Math.max(0, wantSec);
+    }
+    if (playing && el.paused) void el.play().catch(() => {});
+    if (!playing && !el.paused) el.pause();
+  });
+}
+
+function ClipVideo({ clipId }: { clipId: string }) {
+  const timeline = useEditorStore((s) => s.timeline);
+  const playheadSec = useEditorStore((s) => s.playheadSec);
+  const playing = useEditorStore((s) => s.playing);
+  const speed = useEditorStore((s) => s.speed);
+  const muted = useEditorStore((s) => s.muted);
+  const assets = useEditorStore((s) => s.assets);
+  const ref = useRef<HTMLVideoElement>(null);
+
+  const clip = clipAtTime(timeline, playheadSec);
+  const asset = clip?.source.kind === 'asset' ? assets[clip.source.assetId] : undefined;
+  const wantSec =
+    clip && clip.source.kind === 'asset'
+      ? clip.source.inSec + (playheadSec - clip.range.startSec)
+      : 0;
+
+  useMediaSync(ref, wantSec, playing, speed, muted);
+
+  if (!clip || clip.source.kind !== 'asset' || !asset) return null;
+
+  if (IMAGE_RE.test(asset.path)) {
+    return (
+      <img
+        src={fileUrl(asset.path)}
+        alt={clip.label ?? ''}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
+      />
+    );
+  }
+
+  return (
+    <video
+      key={clipId}
+      ref={ref}
+      src={fileUrl(asset.path)}
+      preload="auto"
+      playsInline
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
+    />
+  );
+}
+
+function NarrationAudio() {
+  const timeline = useEditorStore((s) => s.timeline);
+  const playheadSec = useEditorStore((s) => s.playheadSec);
+  const playing = useEditorStore((s) => s.playing);
+  const speed = useEditorStore((s) => s.speed);
+  const muted = useEditorStore((s) => s.muted);
+  const ref = useRef<HTMLAudioElement>(null);
+
+  useMediaSync(ref, playheadSec, playing, speed, muted);
+
+  if (!timeline?.audioPath) return null;
+  return <audio ref={ref} src={fileUrl(timeline.audioPath)} preload="auto" />;
+}
+
+/** Center preview: fills the workspace, resize pill underneath. */
 export function PreviewPane() {
+  const timeline = useEditorStore((s) => s.timeline);
+  const playheadSec = useEditorStore((s) => s.playheadSec);
+  const playing = useEditorStore((s) => s.playing);
+  const showCaptions = useEditorStore((s) => s.showCaptions);
+  const advance = useEditorStore((s) => s.advance);
+  const speed = useEditorStore((s) => s.speed);
+  const togglePlay = useEditorStore((s) => s.togglePlay);
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  // The project clock: advance the playhead while playing. Interval + real
+  // time deltas (not rAF) so playback survives throttled/background panes.
+  useEffect(() => {
+    if (!playing) return;
+    let last = performance.now();
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      advance(((now - last) / 1000) * speed);
+      last = now;
+    }, 33);
+    return () => window.clearInterval(id);
+  }, [playing, speed, advance]);
+
+  const clip = clipAtTime(timeline, playheadSec);
+  const cue = cueAtTime(timeline, playheadSec);
+  const isEmpty = !timeline || timeline.durationSec <= 0;
+
   return (
     <div
       style={{
         flex: 1,
         minWidth: 0,
-        display: 'grid',
-        placeItems: 'center',
-        padding: 22,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '14px 18px 4px',
         background: colors.bgEditor,
+        minHeight: 0,
       }}
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 780,
-          aspectRatio: '16/9',
-          borderRadius: 10,
-          overflow: 'hidden',
-          position: 'relative',
-          border: `1px solid ${colors.border8}`,
-        }}
-      >
+      <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'grid', placeItems: 'center' }}>
         <div
+          ref={frameRef}
+          onClick={togglePlay}
           style={{
-            position: 'absolute',
-            inset: 0,
-            background: gradients.placeholderLg,
-            display: 'grid',
-            placeItems: 'center',
+            height: '100%',
+            maxWidth: '100%',
+            aspectRatio: '16/9',
+            borderRadius: 8,
+            overflow: 'hidden',
+            position: 'relative',
+            border: `1px solid ${colors.border8}`,
+            background: '#000',
+            cursor: 'pointer',
           }}
         >
-          <div
+          {clip && <ClipVideo clipId={clip.id} />}
+          <NarrationAudio />
+
+          {clip?.source.kind === 'generate' && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                background: 'linear-gradient(160deg,#241b3a,#2b2140)',
+              }}
+            >
+              <div style={{ textAlign: 'center', maxWidth: '70%' }}>
+                <Sparkles size={26} color="#a68cff" style={{ marginBottom: 10 }} />
+                <div style={{ fontSize: 13, color: '#c9b8ff', fontWeight: 600, marginBottom: 6 }}>
+                  Generation slot
+                </div>
+                <div style={{ fontSize: 12, color: '#8f83b8', lineHeight: 1.5 }}>
+                  “{clip.source.slot.prompt}” — no library clip cleared the match threshold. Add
+                  matching footage to the library, or a future generator fills this slot.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!clip && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                color: colors.textGhost,
+                fontSize: 13,
+              }}
+            >
+              {isEmpty ? 'Timeline is empty — add clips from the Media panel' : ''}
+            </div>
+          )}
+
+          {showCaptions && cue && (
+            <div
+              style={{
+                position: 'absolute',
+                left: '8%',
+                right: '8%',
+                bottom: '7%',
+                textAlign: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  background: 'rgba(0,0,0,.65)',
+                  color: '#fff',
+                  fontSize: 'clamp(12px, 2.2vmin, 20px)',
+                  lineHeight: 1.35,
+                  padding: '4px 12px',
+                  borderRadius: 6,
+                }}
+              >
+                {cue.text}
+              </span>
+            </div>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              void frameRef.current?.requestFullscreen().catch(() => {});
+            }}
+            title="Fullscreen"
             style={{
-              fontFamily: fontMono,
-              fontSize: 11,
-              color: colors.textGhost,
-              textAlign: 'center',
+              position: 'absolute',
+              top: 11,
+              right: 11,
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              background: 'rgba(0,0,0,.55)',
+              display: 'grid',
+              placeItems: 'center',
+              border: 'none',
+              cursor: 'pointer',
             }}
           >
-            PREVIEW
-            <br />
-            <span style={{ color: colors.textDim }}>MIG-25 frame</span>
-          </div>
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            top: 11,
-            right: 11,
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: 'rgba(0,0,0,.55)',
-            display: 'grid',
-            placeItems: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <Maximize size={15} color={colors.textBright} />
+            <Maximize size={15} color={colors.textBright} />
+          </button>
         </div>
       </div>
+      {/* resize pill */}
+      <div
+        style={{
+          width: 44,
+          height: 4,
+          borderRadius: 3,
+          background: '#3a3a42',
+          margin: '7px 0 3px',
+        }}
+      />
     </div>
   );
 }

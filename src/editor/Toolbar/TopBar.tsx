@@ -1,14 +1,19 @@
-import { Clapperboard, Info, PanelRight, Share2 } from 'lucide-react';
+import { Clapperboard, Info, Loader2, PanelRight, Share2 } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { GradientLogo } from '../../components/GradientLogo';
 import { toolIcons } from '../../data/tools';
 import { useAppStore } from '../../store/useAppStore';
+import { useEditorStore } from '../../store/useEditorStore';
 import { colors, gradients } from '../../theme';
-
-const PROJECT_TITLE = 'Fastest Fighter Jets Ever: Countdown of the Top 7 Supersonic Legends';
 
 export function TopBar() {
   const go = useAppStore((s) => s.go);
+  const showChat = useAppStore((s) => s.showChat);
+  const toggleChat = useAppStore((s) => s.toggleChat);
+  const title = useEditorStore((s) => s.projectTitle);
+  const renderJob = useEditorStore((s) => s.renderJob);
+  const requestRender = useEditorStore((s) => s.requestRender);
+  const rendering = renderJob?.status === 'running' || renderJob?.status === 'queued';
 
   return (
     <div
@@ -75,7 +80,7 @@ export function TopBar() {
             whiteSpace: 'nowrap',
           }}
         >
-          {PROJECT_TITLE}
+          {title}
         </span>
         <Info size={14} color={colors.textGhost} style={{ flexShrink: 0 }} />
       </div>
@@ -104,35 +109,76 @@ export function TopBar() {
         >
           <Share2 size={16} />
         </button>
+        {renderJob?.status === 'done' && renderJob.url ? (
+          <a
+            href={renderJob.url}
+            download
+            target="_blank"
+            rel="noreferrer"
+            className="hv-blue"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 14px',
+              borderRadius: 9,
+              background: '#2e8a4f',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <Clapperboard size={15} />
+            Download video
+          </a>
+        ) : (
+          <button
+            className="hv-blue"
+            onClick={() => void requestRender()}
+            disabled={rendering}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 14px',
+              borderRadius: 9,
+              background: colors.accent,
+              border: 'none',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+              opacity: rendering ? 0.75 : 1,
+              cursor: rendering ? 'default' : 'pointer',
+            }}
+          >
+            {rendering ? (
+              <>
+                <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
+                Rendering {Math.round((renderJob?.progress ?? 0) * 100)}%
+              </>
+            ) : (
+              <>
+                <Clapperboard size={15} />
+                Render video
+              </>
+            )}
+          </button>
+        )}
         <button
-          className="hv-blue"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            padding: '7px 14px',
-            borderRadius: 9,
-            background: colors.accent,
-            border: 'none',
-            color: '#fff',
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          <Clapperboard size={15} />
-          Render video
-        </button>
-        <button
-          className="hv-rail"
+          onClick={toggleChat}
+          title="Toggle Deep Video Agent panel"
+          className={showChat ? undefined : 'hv-rail'}
           style={{
             width: 32,
             height: 32,
             borderRadius: 7,
-            background: 'transparent',
+            background: showChat ? 'rgba(47,107,255,.16)' : 'transparent',
             border: 'none',
-            color: colors.textDim,
+            color: showChat ? '#6f9bff' : colors.textDim,
             display: 'grid',
             placeItems: 'center',
+            cursor: 'pointer',
           }}
         >
           <PanelRight size={16} />

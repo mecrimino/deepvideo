@@ -1,28 +1,106 @@
 import {
   ArrowUp,
   ArrowUpRight,
+  Check,
   ChevronDown,
   FileText,
+  Loader2,
   Mic,
   Plus,
+  X,
 } from 'lucide-react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import type { ProjectSummary } from '@deep-video/shared';
 import { Avatar } from '../components/Avatar';
 import { GradientLogo } from '../components/GradientLogo';
 import { ModelModal } from '../components/ModelModal';
 import { models } from '../data/models';
-import { recents } from '../data/recents';
+import { sampleScripts } from '../data/sample-scripts';
+import { getChannelName, setChannelName, subscribeChannel } from '../lib/channel';
+import { getCredits, subscribeCredits } from '../lib/credits';
+import { formatDuration } from '../lib/format';
+import { listProjects, loadProject } from '../services/project';
+import { uploadAudio } from '../services/transcribe';
 import { useAppStore } from '../store/useAppStore';
+import { fileUrl, useEditorStore } from '../store/useEditorStore';
 import { colors, fontMono, gradients } from '../theme';
+
+/** "2h ago" style relative time for project cards. */
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d < 7 ? `${d}d ago` : `${Math.floor(d / 7)}w ago`;
+}
+
+function dateTag(iso: string): string {
+  return new Date(iso)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    .toUpperCase();
+}
 
 export function HomeScreen() {
   const prompt = useAppStore((s) => s.prompt);
   const setPrompt = useAppStore((s) => s.setPrompt);
+  const script = useAppStore((s) => s.script);
+  const setScript = useAppStore((s) => s.setScript);
+  const audio = useAppStore((s) => s.audio);
+  const setAudio = useAppStore((s) => s.setAudio);
   const modelIdx = useAppStore((s) => s.modelIdx);
   const showModel = useAppStore((s) => s.showModel);
   const showPlus = useAppStore((s) => s.showPlus);
   const togglePlus = useAppStore((s) => s.togglePlus);
   const openModel = useAppStore((s) => s.openModel);
   const go = useAppStore((s) => s.go);
+
+  const [showScript, setShowScript] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+
+  // Real, live local data.
+  const credits = useSyncExternalStore(subscribeCredits, getCredits);
+  const channel = useSyncExternalStore(subscribeChannel, getChannelName);
+  const [editingChannel, setEditingChannel] = useState(false);
+  const [channelDraft, setChannelDraft] = useState(channel);
+
+  // Real saved projects from the server.
+  const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
+  useEffect(() => {
+    listProjects()
+      .then((r) => setProjects(r.projects))
+      .catch(() => setProjects([]));
+  }, []);
+
+  const pickAudio = async (file: File) => {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const res = await uploadAudio(file);
+      setAudio({ path: res.path, name: res.name, durationSec: res.durationSec });
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const openProject = async (id: string) => {
+    try {
+      const { project } = await loadProject(id);
+      useEditorStore.getState().openTimeline(project.timeline, {
+        title: project.title,
+        projectId: project.id,
+      });
+      go('editor');
+    } catch {
+      // leave the card in place; the server likely isn't running
+    }
+  };
 
   return (
     <div
@@ -33,6 +111,19 @@ export function HomeScreen() {
         background: gradients.homeHero,
       }}
     >
+      {/* hidden narration-audio picker */}
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void pickAudio(file);
+          e.target.value = '';
+        }}
+      />
+
       {/* top bar */}
       <div
         style={{
@@ -59,6 +150,7 @@ export function HomeScreen() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div
+            title="Local credits balance — generations deduct their estimated cost"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -82,7 +174,7 @@ export function HomeScreen() {
                 display: 'inline-block',
               }}
             />
-            1,240 credits
+            {credits.toLocaleString()} credits
           </div>
           <Avatar size={34} />
         </div>
@@ -133,6 +225,50 @@ export function HomeScreen() {
               minHeight: 66,
             }}
           />
+
+          {/* attached narration audio chip */}
+          {(audio || uploading || uploadError) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  background: 'rgba(47,107,255,.12)',
+                  border: '1px solid rgba(47,107,255,.35)',
+                  color: '#a9c3ff',
+                  fontSize: 12.5,
+                  padding: '5px 10px',
+                  borderRadius: 999,
+                }}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                    Uploading audio…
+                  </>
+                ) : audio ? (
+                  <>
+                    <Mic size={13} />
+                    {audio.name} · {formatDuration(audio.durationSec)}
+                    <X
+                      size={13}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setAudio(null)}
+                    />
+                  </>
+                ) : (
+                  <span style={{ color: '#ff9d9d' }}>{uploadError}</span>
+                )}
+              </span>
+              {audio && (
+                <span style={{ fontSize: 11.5, color: colors.textGhost }}>
+                  Narration will be transcribed with whisper and drives the edit timing.
+                </span>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
             <div style={{ position: 'relative' }}>
               <button
@@ -168,6 +304,10 @@ export function HomeScreen() {
                 >
                   <div
                     className="hv-dark"
+                    onClick={() => {
+                      togglePlus();
+                      setShowScript(true);
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -181,9 +321,16 @@ export function HomeScreen() {
                   >
                     <FileText size={17} color={colors.textDim} />
                     Custom Script
+                    {script.trim() && (
+                      <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: '#6fd08e' }} />
+                    )}
                   </div>
                   <div
                     className="hv-dark"
+                    onClick={() => {
+                      togglePlus();
+                      audioInputRef.current?.click();
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -197,29 +344,101 @@ export function HomeScreen() {
                   >
                     <Mic size={17} color={colors.textDim} />
                     Custom Audio
+                    {audio && (
+                      <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: '#6fd08e' }} />
+                    )}
                   </div>
                 </div>
               )}
             </div>
-            <button
-              className="hv-dark"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: colors.control,
-                border: `1px solid ${colors.border9}`,
-                padding: '5px 12px 5px 5px',
-                borderRadius: 999,
-                color: colors.textSoft,
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              <Avatar size={24} />
-              Amish channel1
-              <ChevronDown size={15} color={colors.textFaint} />
-            </button>
+
+            {/* channel pill — editable, persisted locally */}
+            <div style={{ position: 'relative' }}>
+              <button
+                className="hv-dark"
+                onClick={() => {
+                  setChannelDraft(channel);
+                  setEditingChannel((v) => !v);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: colors.control,
+                  border: `1px solid ${colors.border9}`,
+                  padding: '5px 12px 5px 5px',
+                  borderRadius: 999,
+                  color: colors.textSoft,
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                <Avatar size={24} />
+                {channel}
+                <ChevronDown size={15} color={colors.textFaint} />
+              </button>
+              {editingChannel && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 44,
+                    left: 0,
+                    width: 230,
+                    background: colors.raised,
+                    border: `1px solid ${colors.border10}`,
+                    borderRadius: 12,
+                    padding: 10,
+                    boxShadow: '0 18px 44px rgba(0,0,0,.55)',
+                    zIndex: 5,
+                    display: 'flex',
+                    gap: 6,
+                  }}
+                >
+                  <input
+                    value={channelDraft}
+                    onChange={(e) => setChannelDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setChannelName(channelDraft);
+                        setEditingChannel(false);
+                      }
+                    }}
+                    placeholder="Channel name"
+                    style={{
+                      flex: 1,
+                      background: colors.card,
+                      border: `1px solid ${colors.border8}`,
+                      borderRadius: 8,
+                      color: colors.text,
+                      fontSize: 13,
+                      padding: '6px 9px',
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      setChannelName(channelDraft);
+                      setEditingChannel(false);
+                    }}
+                    className="hv-blue"
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      background: colors.accent,
+                      border: 'none',
+                      color: '#fff',
+                      display: 'grid',
+                      placeItems: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Check size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div style={{ flex: 1 }} />
             <button
               onClick={openModel}
@@ -259,7 +478,7 @@ export function HomeScreen() {
           </div>
         </div>
 
-        {/* recent generations */}
+        {/* recent generations — REAL saved projects */}
         <div style={{ marginTop: 42 }}>
           <div
             style={{
@@ -272,8 +491,7 @@ export function HomeScreen() {
             <div style={{ fontSize: 15, fontWeight: 600, color: colors.textBright }}>
               Recent Generations
             </div>
-            <a
-              href="#"
+            <span
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -282,26 +500,46 @@ export function HomeScreen() {
                 color: colors.textDim,
               }}
             >
-              View all
+              {projects ? `${projects.length} project${projects.length === 1 ? '' : 's'}` : ''}
               <ArrowUpRight size={14} />
-            </a>
+            </span>
           </div>
+
+          {projects && projects.length === 0 && (
+            <div
+              style={{
+                border: `1px dashed ${colors.border10}`,
+                borderRadius: 14,
+                padding: '26px 20px',
+                textAlign: 'center',
+                color: colors.textGhost,
+                fontSize: 13,
+              }}
+            >
+              No generations yet — describe an idea above and hit send.
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
-            {recents.map((r) => (
+            {(projects ?? []).slice(0, 8).map((p) => (
               <div
-                key={r.title}
+                key={p.id}
                 className="hv-card"
+                onClick={() => void openProject(p.id)}
                 style={{
                   background: colors.panel,
                   border: `1px solid ${colors.border7}`,
                   borderRadius: 14,
                   overflow: 'hidden',
+                  cursor: 'pointer',
                 }}
               >
                 <div
                   style={{
                     aspectRatio: '16/10',
-                    background: gradients.placeholder,
+                    background: p.thumb
+                      ? `url(${fileUrl(p.thumb)}) center/cover`
+                      : gradients.placeholder,
                     position: 'relative',
                   }}
                 >
@@ -312,26 +550,29 @@ export function HomeScreen() {
                       bottom: 8,
                       fontFamily: fontMono,
                       fontSize: 10,
-                      color: colors.textMono,
+                      color: p.thumb ? '#e7e7ea' : colors.textMono,
                       letterSpacing: '.04em',
+                      textShadow: p.thumb ? '0 1px 3px rgba(0,0,0,.8)' : undefined,
                     }}
                   >
-                    {r.tag}
+                    {dateTag(p.createdAt)}
                   </div>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      right: 8,
-                      bottom: 8,
-                      background: 'rgba(0,0,0,.6)',
-                      padding: '2px 7px',
-                      borderRadius: 6,
-                      fontSize: 11,
-                      color: colors.textMid,
-                    }}
-                  >
-                    {r.dur}
-                  </div>
+                  {p.durationSec !== undefined && p.durationSec > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        bottom: 8,
+                        background: 'rgba(0,0,0,.6)',
+                        padding: '2px 7px',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        color: colors.textMid,
+                      }}
+                    >
+                      {formatDuration(p.durationSec)}
+                    </div>
+                  )}
                 </div>
                 <div style={{ padding: '10px 12px 12px' }}>
                   <div
@@ -345,9 +586,11 @@ export function HomeScreen() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {r.title}
+                    {p.title}
                   </div>
-                  <div style={{ fontSize: 11, color: colors.textGhost, marginTop: 4 }}>{r.meta}</div>
+                  <div style={{ fontSize: 11, color: colors.textGhost, marginTop: 4 }}>
+                    Updated {timeAgo(p.updatedAt)}
+                  </div>
                 </div>
               </div>
             ))}
@@ -356,6 +599,100 @@ export function HomeScreen() {
       </div>
 
       {showModel && <ModelModal />}
+
+      {showScript && (
+        <div
+          onClick={() => setShowScript(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,.6)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(640px, 92vw)',
+              background: colors.panel,
+              border: `1px solid ${colors.border9}`,
+              borderRadius: 18,
+              padding: 20,
+              boxShadow: '0 26px 70px rgba(0,0,0,.6)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>Custom narration script</div>
+              <button
+                onClick={() => setShowScript(false)}
+                style={{ background: 'transparent', border: 'none', color: colors.textDim, cursor: 'pointer' }}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <div style={{ fontSize: 12.5, color: colors.textFaint, marginBottom: 10, lineHeight: 1.5 }}>
+              The pipeline segments this script into beats and retrieves matching clips from your
+              local library. Leave it empty to use the prompt text instead.
+            </div>
+            <textarea
+              rows={8}
+              value={script}
+              onChange={(e) => setScript(e.target.value)}
+              placeholder="Paste or write the narration script…"
+              style={{
+                width: '100%',
+                background: colors.card,
+                border: `1px solid ${colors.border8}`,
+                borderRadius: 10,
+                color: colors.text,
+                fontSize: 13.5,
+                lineHeight: 1.55,
+                padding: '10px 12px',
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              {sampleScripts.map((s) => (
+                <button
+                  key={s.title}
+                  onClick={() => setScript(s.text)}
+                  className="hv-dark"
+                  style={{
+                    fontSize: 12,
+                    color: colors.textSoft,
+                    background: colors.control,
+                    border: `1px solid ${colors.border9}`,
+                    padding: '6px 11px',
+                    borderRadius: 999,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s.title}
+                </button>
+              ))}
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowScript(false)}
+                className="hv-blue"
+                style={{
+                  background: colors.accent,
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: '8px 18px',
+                  borderRadius: 9,
+                  cursor: 'pointer',
+                }}
+              >
+                Use this script
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

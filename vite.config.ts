@@ -10,9 +10,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    // Uses the PORT assigned by the dev-server launcher; 5173 when run manually.
+    port: Number(process.env.PORT) || 5173,
     proxy: {
       '/api': 'http://localhost:8787',
+      '/files': 'http://localhost:8787',
     },
   },
 });
