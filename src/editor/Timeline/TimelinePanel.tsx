@@ -5,10 +5,10 @@
  * playing.
  */
 
-import { GripVertical, Sparkles } from 'lucide-react';
+import { GripVertical, Layers, Sparkles } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { useEditorStore } from '../../store/useEditorStore';
+import { laneTracks, useEditorStore } from '../../store/useEditorStore';
 import { colors } from '../../theme';
 import { FilmTrack } from './FilmTrack';
 import { Playhead } from './Playhead';
@@ -27,14 +27,13 @@ function TrackRow({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Floating "Ctrl L · Add to Deep Video Agent" pill anchored to the selected
- * clip (reference behavior): clicking attaches the clip to the agent composer
- * as a mention chip.
+ * "Ctrl L · Add to Deep Video Agent" pill in a FIXED spot at the timeline's
+ * bottom-right (reference layout). Shown while a video clip is selected;
+ * clicking attaches the clip to the agent composer as a mention chip.
  */
 function AddToAgentPill() {
   const timeline = useEditorStore((s) => s.timeline);
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
-  const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const addMentionFromSelection = useEditorStore((s) => s.addMentionFromSelection);
   const showChat = useAppStore((s) => s.showChat);
   const toggleChat = useAppStore((s) => s.toggleChat);
@@ -44,9 +43,6 @@ function AddToAgentPill() {
     ?.clips.find((c) => c.id === selectedClipId);
   if (!clip) return null;
 
-  // Anchored just below the selected clip on the film track (14px lane inset).
-  const left = 14 + clip.range.endSec * pxPerSec - 4;
-
   return (
     <button
       onPointerDown={(e) => e.stopPropagation()}
@@ -54,12 +50,11 @@ function AddToAgentPill() {
         addMentionFromSelection();
         if (!showChat) toggleChat();
       }}
-      title="Attach this clip to your agent prompt (Ctrl+L)"
+      title="Attach the selected clip to your agent prompt (Ctrl+L)"
       style={{
         position: 'absolute',
-        left,
-        top: 48,
-        transform: 'translateX(-100%)',
+        right: 16,
+        bottom: 8,
         display: 'flex',
         alignItems: 'center',
         gap: 8,
@@ -100,13 +95,24 @@ export function TimelinePanel() {
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const playheadSec = useEditorStore((s) => s.playheadSec);
   const playing = useEditorStore((s) => s.playing);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const toggleChat = useAppStore((s) => s.toggleChat);
   const showChat = useAppStore((s) => s.showChat);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const timelineH = useEditorStore((s) => s.timelineH);
+
   const durationSec = timeline?.durationSec ?? 0;
   const contentSec = Math.max(durationSec + 12, 60);
   const contentW = contentSec * pxPerSec;
+
+  // Distribute the resized strip's height into the lanes themselves (the
+  // video lane grows the most) so a taller timeline means bigger clips, not
+  // dead space. Fixed costs: transport ~46, ruler 23, paddings/gaps ~28.
+  const extra = Math.max(0, timelineH - 46 - 23 - 28 - (18 + 36 + 26));
+  const textH = Math.round(18 + extra * 0.14);
+  const filmH = Math.round(36 + extra * 0.6);
+  const waveH = Math.round(26 + extra * 0.26);
 
   // Keep the playhead visible while playing.
   useEffect(() => {
@@ -118,11 +124,13 @@ export function TimelinePanel() {
     }
   }, [playheadSec, playing, pxPerSec]);
 
+  const lanes = timeline ? laneTracks(timeline) : [];
+
   return (
-    <div style={{ padding: '0 16px 10px', position: 'relative' }}>
+    <div style={{ padding: '0 16px 2px', position: 'relative' }}>
       <div
         ref={scrollRef}
-        style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: 2 }}
+        style={{ overflowX: 'auto', overflowY: 'hidden' }}
       >
         <div style={{ width: contentW, minWidth: '100%', position: 'relative' }}>
           <div style={{ paddingLeft: 14 }}>
@@ -131,22 +139,25 @@ export function TimelinePanel() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: -14 }}>
               <TrackRow>
-                <TextTrack />
+                <TextTrack height={textH} />
               </TrackRow>
+              {lanes.map((lane) => (
+                <TrackRow key={lane.id}>
+                  <FilmTrack trackId={lane.id} height={filmH} />
+                </TrackRow>
+              ))}
               <TrackRow>
-                <FilmTrack />
-              </TrackRow>
-              <TrackRow>
-                <WaveTrack contentSec={contentSec} />
+                <WaveTrack contentSec={contentSec} height={waveH} />
               </TrackRow>
             </div>
             <Playhead />
-            <AddToAgentPill />
           </div>
         </div>
       </div>
 
-      {!showChat && (
+      <AddToAgentPill />
+
+      {!showChat && !selectedClipId && (
         <button
           onClick={toggleChat}
           className="hv-blue"

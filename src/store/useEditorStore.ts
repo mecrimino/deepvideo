@@ -14,6 +14,7 @@ import type {
   RenderJob,
   Timeline,
   TimelineClip,
+  Track,
 } from '@deep-video/shared';
 import { fetchJson } from '../lib/fetchJson';
 import { listClips } from '../services/clips';
@@ -58,6 +59,14 @@ function sortedVideoClips(t: Timeline): TimelineClip[] {
     .sort((a, b) => a.range.startSec - b.range.startSec);
 }
 
+/**
+ * The visual layer lanes, top-most first: overlay tracks stack ABOVE the base
+ * video track. Array order in timeline.tracks defines stacking priority.
+ */
+export function laneTracks(t: Timeline): Track[] {
+  return t.tracks.filter((tr) => tr.kind === 'overlay' || tr.kind === 'video');
+}
+
 function recomputeDuration(t: Timeline): void {
   let end = 0;
   for (const track of t.tracks) for (const c of track.clips) end = Math.max(end, c.range.endSec);
@@ -85,6 +94,8 @@ interface EditorState {
 
   /** Clips attached to the agent composer as mention chips. */
   chatMentions: ChatMention[];
+  /** Clip whose stock-replacement picker is open (null = closed). */
+  replaceTargetClipId: string | null;
 
   /* playback */
   playing: boolean;
@@ -98,6 +109,10 @@ interface EditorState {
   selectedClipId: string | null;
   selectedCueId: string | null;
   activePanel: 'none' | 'media' | 'text';
+  /** Height (px) of the transport+timeline strip — drag the preview pill. */
+  timelineH: number;
+  /** Width (px) of the agent panel — drag its left-edge handle. */
+  agentW: number;
 
   /* history */
   past: Timeline[];
@@ -106,6 +121,8 @@ interface EditorState {
   /* server sync */
   renderJob: RenderJob | null;
   saveState: 'idle' | 'saving' | 'saved' | 'error';
+  /** Render-options dialog (resolution + captions) visibility. */
+  renderDialogOpen: boolean;
 
   /* ---- document lifecycle ---- */
   openTimeline: (t: Timeline, opts?: { title?: string; projectId?: string }) => void;
@@ -127,14 +144,26 @@ interface EditorState {
   selectClip: (id: string | null) => void;
   selectCue: (id: string | null) => void;
   setActivePanel: (p: 'none' | 'media' | 'text') => void;
+  setTimelineH: (px: number) => void;
+  setAgentW: (px: number) => void;
 
   /* ---- agent chat mentions ---- */
   addMentionFromSelection: () => void;
   removeMention: (clipId: string) => void;
   clearMentions: () => void;
 
+  /* ---- stock replace picker ---- */
+  openReplace: (clipId: string) => void;
+  closeReplace: () => void;
+  /** Point a clip at a (usually just-imported) library asset, keeping length. */
+  replaceClipWithAsset: (clipId: string, asset: ClipAsset, inSec?: number) => void;
+
   /* ---- edits (all push history) ---- */
   moveClip: (clipId: string, newStartSec: number) => void;
+  /** Move a clip N lanes up (negative) / down (positive) at newStartSec. */
+  moveClipLane: (clipId: string, laneDelta: number, newStartSec: number) => void;
+  /** Add an overlay layer above the current top lane. */
+  addLayer: () => void;
   trimClipEdge: (clipId: string, edge: 'start' | 'end', newSec: number) => void;
   splitAtPlayhead: () => void;
   deleteSelected: () => void;
@@ -148,7 +177,8 @@ interface EditorState {
 
   /* ---- server ---- */
   saveNow: () => Promise<void>;
-  requestRender: () => Promise<void>;
+  setRenderDialogOpen: (open: boolean) => void;
+  requestRender: (opts?: { width?: number; height?: number; burnCaptions?: boolean }) => Promise<void>;
 }
 
 let saveTimer: number | undefined;
@@ -198,12 +228,16 @@ export const useEditorStore = create<EditorState>((set, get) => {
     selectedCueId: null,
     activePanel: 'none',
     chatMentions: [],
+    replaceTargetClipId: null,
+    timelineH: Math.min(280, Number(localStorage.getItem('deepvideo.ui.timelineH')) || 192),
+    agentW: Number(localStorage.getItem('deepvideo.ui.agentW')) || 268,
 
     past: [],
     future: [],
 
     renderJob: null,
     saveState: 'idle',
+    renderDialogOpen: false,
 
     /* ---------------------------- document ---------------------------- */
 
@@ -271,6 +305,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
     /* ------------------------------ view ------------------------------ */
 
     setPxPerSec: (v) => set({ pxPerSec: Math.max(2, Math.min(60, v)) }),
+
+    setTimelineH: (px) => {
+      // Cap so clip filmstrips never upscale past their thumbnail resolution.
+      const v = Math.round(Math.max(120, Math.min(280, px)));
+      localStorage.setItem('deepvideo.ui.timelineH', String(v));
+      set({ timelineH: v });
+    },
+
+    setAgentW: (px) => {
+      const v = Math.round(Math.max(232, Math.min(520, px)));
+      localStorage.setItem('deepvideo.ui.agentW', String(v));
+      set({ agentW: v });
+    },
     selectClip: (id) => set({ selectedClipId: id, selectedCueId: null }),
     selectCue: (id) => set({ selectedCueId: id, selectedClipId: null }),
     setActivePanel: (p) => set({ activePanel: p }),
@@ -303,6 +350,33 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set((s) => ({ chatMentions: s.chatMentions.filter((m) => m.clipId !== clipId) })),
 
     clearMentions: () => set({ chatMentions: [] }),
+
+    /* ----------------------- stock replace picker ---------------------- */
+
+    openReplace: (clipId) => set({ replaceTargetClipId: clipId }),
+    closeReplace: () => set({ replaceTargetClipId: null }),
+
+    replaceClipWithAsset: (clipId, asset, inSec = 0) => {
+      // Register the asset so thumbnails/preview resolve immediately.
+      set((s) => ({ assets: { ...s.assets, [asset.id]: asset } }));
+      edit((t) => {
+        let found: TimelineClip | undefined;
+        for (const track of t.tracks) {
+          const c = track.clips.find((cl) => cl.id === clipId);
+          if (c) {
+            found = c;
+            break;
+          }
+        }
+        if (!found) throw new Error('clip not found');
+        const dur = found.range.endSec - found.range.startSec;
+        const maxIn = asset.durationSec > dur ? asset.durationSec - dur : 0;
+        const safeIn = Math.max(0, Math.min(inSec, maxIn));
+        found.source = { kind: 'asset', assetId: asset.id, inSec: safeIn, outSec: safeIn + dur };
+        found.label = asset.tags.slice(0, 6).join(' ') || asset.path;
+        delete (found as { review?: boolean }).review;
+      });
+    },
 
     /* ------------------------------ edits ----------------------------- */
 
@@ -337,6 +411,42 @@ export const useEditorStore = create<EditorState>((set, get) => {
           return;
         }
         throw new Error('clip not found');
+      }),
+
+    moveClipLane: (clipId, laneDelta, newStartSec) =>
+      edit((t) => {
+        const lanes = laneTracks(t);
+        const fromIdx = lanes.findIndex((l) => l.clips.some((c) => c.id === clipId));
+        if (fromIdx < 0) throw new Error('clip not found');
+        const toIdx = fromIdx + laneDelta;
+        if (toIdx < 0 || toIdx >= lanes.length) throw new Error('no lane there');
+        const from = lanes[fromIdx];
+        const to = lanes[toIdx];
+        const clip = from.clips.find((c) => c.id === clipId)!;
+        const dur = clip.range.endSec - clip.range.startSec;
+
+        let start = Math.max(0, newStartSec);
+        const sorted = to.clips.slice().sort((a, b) => a.range.startSec - b.range.startSec);
+        for (const o of sorted) {
+          if (start < o.range.endSec && start + dur > o.range.startSec) start = o.range.endSec;
+        }
+        from.clips = from.clips.filter((c) => c.id !== clipId);
+        clip.range = { startSec: start, endSec: start + dur };
+        to.clips.push(clip);
+        to.clips.sort((a, b) => a.range.startSec - b.range.startSec);
+      }),
+
+    addLayer: () =>
+      edit((t) => {
+        const overlayCount = t.tracks.filter((tr) => tr.kind === 'overlay').length;
+        if (overlayCount >= 3) throw new Error('maximum 4 layers');
+        // Insert at the front: earlier tracks stack ABOVE later ones.
+        t.tracks.unshift({
+          id: uid('trk'),
+          kind: 'overlay',
+          name: `Layer ${overlayCount + 2}`,
+          clips: [],
+        });
       }),
 
     trimClipEdge: (clipId, edge, newSec) =>
@@ -383,7 +493,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     splitAtPlayhead: () => {
       const { timeline, playheadSec, selectedClipId } = get();
       if (!timeline) return;
-      const clips = sortedVideoClips(timeline);
+      const clips = laneTracks(timeline).flatMap((l) => l.clips);
       const target =
         clips.find((c) => c.id === selectedClipId && c.range.startSec < playheadSec && playheadSec < c.range.endSec) ??
         clips.find((c) => c.range.startSec < playheadSec && playheadSec < c.range.endSec);
@@ -536,11 +646,14 @@ export const useEditorStore = create<EditorState>((set, get) => {
       }
     },
 
-    requestRender: async () => {
+    setRenderDialogOpen: (open) => set({ renderDialogOpen: open }),
+
+    requestRender: async (opts) => {
       const { timeline, renderJob } = get();
       if (!timeline || renderJob?.status === 'running') return;
+      set({ renderDialogOpen: false });
       try {
-        const { job } = await startRender({ timeline });
+        const { job } = await startRender({ timeline, ...opts });
         set({ renderJob: job });
         const poll = async (): Promise<void> => {
           const current = get().renderJob;
@@ -570,12 +683,14 @@ export const useEditorStore = create<EditorState>((set, get) => {
   };
 });
 
-/** The video-track clip under a given time, if any. */
+/** The visible clip under a given time: top-most layer wins. */
 export function clipAtTime(t: Timeline | null, sec: number): TimelineClip | null {
   if (!t) return null;
-  return (
-    sortedVideoClips(t).find((c) => c.range.startSec <= sec && sec < c.range.endSec) ?? null
-  );
+  for (const lane of laneTracks(t)) {
+    const hit = lane.clips.find((c) => c.range.startSec <= sec && sec < c.range.endSec);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 /** The caption cue visible at a given time, if any. */

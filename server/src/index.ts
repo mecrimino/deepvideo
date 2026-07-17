@@ -20,7 +20,11 @@ import type {
   AgentChatRequest,
   AgentChatResponse,
   ApiError,
+  AuthResponse,
   CancelRunResponse,
+  LoginRequest,
+  MeResponse,
+  SignupRequest,
   DeleteProjectResponse,
   HealthResponse,
   IndexClipsRequest,
@@ -38,6 +42,11 @@ import type {
   SearchClipsRequest,
   SearchClipsResponse,
   StartRenderResponse,
+  StockImportRequest,
+  StockImportResponse,
+  StockResult,
+  StockSearchRequest,
+  StockSearchResponse,
   TranscribeRequest,
   UploadAudioResponse,
   UploadMediaResponse,
@@ -58,6 +67,7 @@ import { deleteProject, listProjects, loadProject, saveProject } from './project
 import { ffmpegAvailable, probe, renderTimeline } from './render.js';
 import { createRunStore } from './runstore.js';
 import { transcribeAudio } from './transcribe.js';
+import { login, logout, me, signup } from './users.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 
@@ -102,6 +112,44 @@ function errorPayload(err: unknown): ApiError {
 function notImplemented(what: string): ApiError {
   return { error: `${what} is not implemented yet`, notImplemented: true };
 }
+
+/* ---------------------------------- auth ---------------------------------- */
+
+function bearerToken(req: { headers: { authorization?: string } }): string | undefined {
+  const h = req.headers.authorization;
+  return h?.startsWith('Bearer ') ? h.slice(7) : undefined;
+}
+
+app.post<{ Body: SignupRequest }>('/api/auth/signup', async (req, reply) => {
+  try {
+    if (!req.body?.email || !req.body?.password) {
+      return reply.code(400).send({ error: 'email and password are required' } satisfies ApiError);
+    }
+    return (await signup(req.body)) satisfies AuthResponse;
+  } catch (err) {
+    return reply.code(400).send(errorPayload(err));
+  }
+});
+
+app.post<{ Body: LoginRequest }>('/api/auth/login', async (req, reply) => {
+  try {
+    if (!req.body?.email || !req.body?.password) {
+      return reply.code(400).send({ error: 'email and password are required' } satisfies ApiError);
+    }
+    return (await login(req.body)) satisfies AuthResponse;
+  } catch (err) {
+    return reply.code(401).send(errorPayload(err));
+  }
+});
+
+app.get('/api/auth/me', async (req): Promise<MeResponse> => {
+  return { user: await me(bearerToken(req)) };
+});
+
+app.post('/api/auth/logout', async (req) => {
+  await logout(bearerToken(req));
+  return { ok: true };
+});
 
 /* --------------------------------- health -------------------------------- */
 
@@ -166,6 +214,49 @@ app.post('/api/media/upload', async (req, reply) => {
     const dest = await saveUpload(file.filename, buf);
     const asset = await registerMediaFile(dest, db, embedder, { source: 'user' });
     return { asset } satisfies UploadMediaResponse;
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(500).send(errorPayload(err));
+  }
+});
+
+/* ------------------------------ stock footage ---------------------------- */
+
+app.post<{ Body: StockSearchRequest }>('/api/stock/search', async (req, reply) => {
+  const query = req.body?.query?.trim();
+  if (!query) return reply.code(400).send({ error: 'query is required' } satisfies ApiError);
+  try {
+    const candidates = await miniDeps.stock.search(query, req.body?.perSource ?? 8);
+    const results: StockResult[] = candidates.map((c) => ({
+      id: c.id,
+      source: c.source,
+      thumbUrl: c.thumbUrl,
+      videoUrl: c.videoUrl,
+      width: c.width,
+      height: c.height,
+      durationSec: c.durationSec,
+    }));
+    return { query, results } satisfies StockSearchResponse;
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(500).send(errorPayload(err));
+  }
+});
+
+app.post<{ Body: StockImportRequest }>('/api/stock/import', async (req, reply) => {
+  const result = req.body?.result;
+  if (!result?.videoUrl) return reply.code(400).send({ error: 'result.videoUrl is required' } satisfies ApiError);
+  try {
+    const res = await fetch(result.videoUrl, { signal: AbortSignal.timeout(90_000) });
+    if (!res.ok) throw new Error(`download failed (${res.status})`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const dest = await saveUpload(`${(req.body.tags ?? ['stock']).slice(0, 5).join('_')}_${result.id}.mp4`, buf);
+    const asset = await registerMediaFile(dest, db, embedder, {
+      source: 'stock',
+      tags: req.body.tags,
+      license: result.source === 'pexels' ? 'Pexels' : 'Pixabay',
+    });
+    return { asset } satisfies StockImportResponse;
   } catch (err) {
     req.log.error(err);
     return reply.code(500).send(errorPayload(err));
@@ -284,8 +375,16 @@ app.post<{ Body: RenderRequest }>('/api/render', async (req, reply) => {
   const job: RenderJob = { id: uid('render'), status: 'running', progress: 0 };
   renderJobs.set(job.id, job);
 
+  // Apply the export options: resolution override and captions on/off.
+  const timeline = structuredClone(req.body.timeline);
+  if (req.body.width && req.body.height) {
+    timeline.width = Math.round(req.body.width);
+    timeline.height = Math.round(req.body.height);
+  }
+  if (req.body.burnCaptions === false) timeline.captions = [];
+
   const assets = new Map((await db.listAssets()).map((a) => [a.id, a.path]));
-  renderTimeline(req.body.timeline, {
+  renderTimeline(timeline, {
     format: req.body.format,
     resolveAsset: (id) => assets.get(id),
     onProgress: ({ progress, message }) => {

@@ -17,6 +17,8 @@ import { TimelinePanel } from './Timeline/TimelinePanel';
 import { AgentChat } from './Toolbar/AgentChat';
 import { IconRail } from './Toolbar/IconRail';
 import { MediaPanel } from './Toolbar/MediaPanel';
+import { RenderDialog } from './Toolbar/RenderDialog';
+import { ReplaceDialog } from './Toolbar/ReplaceDialog';
 import { SettingsPanel } from './Toolbar/SettingsPanel';
 import { TextPanel } from './Toolbar/TextPanel';
 import { TopBar } from './Toolbar/TopBar';
@@ -26,6 +28,7 @@ export function EditorScreen() {
   const showSettings = useAppStore((s) => s.showSettings);
   const showChat = useAppStore((s) => s.showChat);
   const activePanel = useEditorStore((s) => s.activePanel);
+  const timelineH = useEditorStore((s) => s.timelineH);
   const timeline = useEditorStore((s) => s.timeline);
   const openTimeline = useEditorStore((s) => s.openTimeline);
 
@@ -109,18 +112,27 @@ export function EditorScreen() {
           <div
             style={{
               flexShrink: 0,
+              height: timelineH,
+              display: 'flex',
+              flexDirection: 'column',
               borderTop: `1px solid ${colors.border7}`,
               background: colors.bgBar,
+              overflow: 'hidden',
             }}
           >
             <TransportBar />
-            <TimelinePanel />
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
+              <TimelinePanel />
+            </div>
           </div>
         </div>
 
         {/* right column: the agent, full height from top bar to window bottom */}
         {showChat && <AgentChat />}
       </div>
+
+      <RenderDialog />
+      <ReplaceDialog />
     </div>
   );
 }

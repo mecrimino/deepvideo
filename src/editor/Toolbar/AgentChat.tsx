@@ -13,7 +13,7 @@
  * timelines are applied to the editor (undoable).
  */
 
-import { ArrowUp, Bot, ChevronDown, Loader2, Plus, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, Bot, ChevronDown, Loader2, Plus, Repeat, Sparkles, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { AgentMention } from '@deep-video/shared';
 import { spendCredits } from '../../lib/credits';
@@ -122,6 +122,8 @@ export function AgentChat() {
   const mentions = useEditorStore((s) => s.chatMentions);
   const removeMention = useEditorStore((s) => s.removeMention);
   const clearMentions = useEditorStore((s) => s.clearMentions);
+  const openReplace = useEditorStore((s) => s.openReplace);
+  const agentW = useEditorStore((s) => s.agentW);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -217,7 +219,8 @@ export function AgentChat() {
   return (
     <div
       style={{
-        width: 'clamp(340px, 28vw, 430px)',
+        // Thin column like the reference editor; drag the left-edge handle to resize.
+        width: agentW,
         flexShrink: 0,
         borderLeft: `1px solid ${colors.border7}`,
         display: 'flex',
@@ -227,6 +230,37 @@ export function AgentChat() {
         position: 'relative',
       }}
     >
+      {/* left-edge resize handle */}
+      <div
+        onPointerDown={(e) => {
+          e.preventDefault();
+          const startX = e.clientX;
+          const startW = useEditorStore.getState().agentW;
+          const move = (ev: PointerEvent) =>
+            useEditorStore.getState().setAgentW(startW + (startX - ev.clientX));
+          const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+          };
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', up);
+        }}
+        title="Drag to resize the agent panel"
+        style={{
+          position: 'absolute',
+          left: -4,
+          top: 0,
+          bottom: 0,
+          width: 9,
+          cursor: 'ew-resize',
+          zIndex: 8,
+          display: 'grid',
+          placeItems: 'center',
+          touchAction: 'none',
+        }}
+      >
+        <div style={{ width: 4, height: 38, borderRadius: 3, background: '#3a3a42' }} />
+      </div>
       {/* header */}
       <div
         style={{
@@ -234,11 +268,11 @@ export function AgentChat() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 8,
-          padding: '11px 16px',
+          padding: '10px 13px',
           borderBottom: `1px solid ${colors.border7}`,
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 600, color: colors.textSoft }}>New chat</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: colors.textSoft }}>New chat</span>
         {messages.length > 0 && (
           <button
             onClick={() => {
@@ -260,25 +294,25 @@ export function AgentChat() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '18px 16px 10px',
+          padding: '14px 13px 8px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: messages.length === 0 ? 'flex-end' : 'flex-start',
-          gap: 12,
+          gap: 10,
           minHeight: 0,
         }}
       >
         {messages.length === 0 && (
           <>
-            <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              <div style={{ fontSize: 15.5, fontWeight: 700 }}>Deep Video Agent</div>
+            <div style={{ textAlign: 'center', marginBottom: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Deep Video Agent</div>
               <div
                 style={{
-                  fontSize: 12.5,
+                  fontSize: 11.5,
                   color: colors.textFaint,
-                  lineHeight: 1.55,
-                  marginTop: 6,
-                  maxWidth: 270,
+                  lineHeight: 1.5,
+                  marginTop: 5,
+                  maxWidth: 230,
                   marginLeft: 'auto',
                   marginRight: 'auto',
                 }}
@@ -295,9 +329,9 @@ export function AgentChat() {
                   textAlign: 'left',
                   background: colors.card,
                   border: `1px solid ${colors.border8}`,
-                  borderRadius: 10,
-                  padding: '10px 13px',
-                  fontSize: 12.5,
+                  borderRadius: 9,
+                  padding: '8px 11px',
+                  fontSize: 11.5,
                   color: colors.textSoft,
                   lineHeight: 1.45,
                   cursor: 'pointer',
@@ -406,13 +440,13 @@ export function AgentChat() {
       )}
 
       {/* composer */}
-      <div style={{ padding: '6px 16px 8px' }}>
+      <div style={{ padding: '5px 13px 7px' }}>
         <div
           style={{
             background: colors.card,
             border: `1px solid ${colors.border9}`,
-            borderRadius: 12,
-            padding: '10px 12px',
+            borderRadius: 11,
+            padding: '9px 10px',
             position: 'relative',
           }}
         >
@@ -423,6 +457,32 @@ export function AgentChat() {
                 <MentionChip key={m.clipId} m={m} onRemove={() => removeMention(m.clipId)} />
               ))}
             </div>
+          )}
+
+          {/* auto suggestion: replace the attached clip with stock footage */}
+          {mentions.length > 0 && (
+            <button
+              onClick={() => openReplace(mentions[mentions.length - 1].clipId)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                width: '100%',
+                textAlign: 'left',
+                marginBottom: 8,
+                padding: '7px 9px',
+                borderRadius: 8,
+                background: 'rgba(47,107,255,.1)',
+                border: '1px solid rgba(47,107,255,.32)',
+                color: '#a9c3ff',
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Repeat size={13} style={{ flexShrink: 0 }} />
+              Find a replacement on Pexels & Pixabay
+            </button>
           )}
 
           <textarea
@@ -441,9 +501,9 @@ export function AgentChat() {
               background: 'transparent',
               border: 'none',
               color: colors.text,
-              fontSize: 13,
+              fontSize: 12,
               lineHeight: 1.45,
-              minHeight: 36,
+              minHeight: 32,
               resize: 'none',
             }}
           />
@@ -560,7 +620,7 @@ export function AgentChat() {
             )}
           </div>
         </div>
-        <div style={{ fontSize: 10, color: colors.textGhost, textAlign: 'center', marginTop: 6 }}>
+        <div style={{ fontSize: 9.5, color: colors.textGhost, textAlign: 'center', marginTop: 5 }}>
           Deep Video Agent is in early Beta. Results may be unstable.
         </div>
       </div>

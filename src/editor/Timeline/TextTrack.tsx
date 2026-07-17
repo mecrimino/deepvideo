@@ -85,10 +85,10 @@ function Chip({ cue }: { cue: CaptionCue }) {
   );
 }
 
-export function TextTrack() {
+export function TextTrack({ height = 18 }: { height?: number }) {
   const timeline = useEditorStore((s) => s.timeline);
   return (
-    <div style={{ position: 'relative', height: 18 }}>
+    <div style={{ position: 'relative', height }}>
       {(timeline?.captions ?? []).map((cue) => (
         <Chip key={cue.id} cue={cue} />
       ))}

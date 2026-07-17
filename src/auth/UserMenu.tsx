@@ -1,15 +1,15 @@
 /**
- * The signed-in user's avatar (real Auth0 profile picture) with a popover
- * showing who is logged in and a Log out action.
+ * The signed-in user's avatar (initial from their local account) with a
+ * popover showing who is logged in and a Log out action.
  */
 
-import { useAuth0 } from '@auth0/auth0-react';
 import { LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { colors, gradients } from '../theme';
+import { getAuthState, logout, subscribeAuth } from './local';
 
 export function UserMenu() {
-  const { user, logout } = useAuth0();
+  const { user } = useSyncExternalStore(subscribeAuth, getAuthState);
   const [open, setOpen] = useState(false);
 
   return (
@@ -30,18 +30,9 @@ export function UserMenu() {
           placeItems: 'center',
         }}
       >
-        {user?.picture ? (
-          <img
-            src={user.picture}
-            alt={user.name ?? 'account'}
-            referrerPolicy="no-referrer"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>
-            {(user?.name ?? user?.email ?? '?').slice(0, 1).toUpperCase()}
-          </span>
-        )}
+        <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>
+          {(user?.name ?? user?.email ?? '?').slice(0, 1).toUpperCase()}
+        </span>
       </button>
 
       {open && (
@@ -66,7 +57,10 @@ export function UserMenu() {
             {user?.email}
           </div>
           <button
-            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+            onClick={() => {
+              setOpen(false);
+              void logout();
+            }}
             className="hv-dark"
             style={{
               width: '100%',

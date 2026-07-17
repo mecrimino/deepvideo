@@ -136,34 +136,57 @@ export async function renderTimeline(
   await fs.mkdir(EXPORTS_DIR, { recursive: true });
 
   try {
-    const video = timeline.tracks.find((t) => t.kind === 'video');
-    const clips = [...(video?.clips ?? [])].sort((a, b) => a.range.startSec - b.range.startSec);
+    // Visual layers: overlay tracks stack ABOVE the base video track; array
+    // order in timeline.tracks is the stacking priority (first = top).
+    const lanes = timeline.tracks.filter((t) => t.kind === 'video' || t.kind === 'overlay');
+    const allClips = lanes.flatMap((l) => l.clips);
     const totalSec = Math.max(
       timeline.durationSec,
-      clips.length > 0 ? clips[clips.length - 1].range.endSec : 0,
+      allClips.reduce((m, c) => Math.max(m, c.range.endSec), 0),
     );
     if (totalSec <= 0) throw new Error('timeline is empty — nothing to render');
 
-    // ---- plan segments: clips, and black filler for gaps/slots ----
+    // ---- flatten layers into segments: at every boundary the TOP-most clip
+    // wins; uncovered spans render as black filler ----
     interface Segment {
       startSec: number;
       durSec: number;
       clip?: TimelineClip;
     }
-    const segments: Segment[] = [];
-    let cursor = 0;
-    for (const clip of clips) {
-      if (clip.range.startSec > cursor + 0.01) {
-        segments.push({ startSec: cursor, durSec: clip.range.startSec - cursor });
-      }
-      segments.push({
-        startSec: clip.range.startSec,
-        durSec: clip.range.endSec - clip.range.startSec,
-        clip,
-      });
-      cursor = Math.max(cursor, clip.range.endSec);
+    const bounds = new Set<number>([0, totalSec]);
+    for (const c of allClips) {
+      bounds.add(Math.max(0, c.range.startSec));
+      bounds.add(Math.min(totalSec, c.range.endSec));
     }
-    if (totalSec > cursor + 0.01) segments.push({ startSec: cursor, durSec: totalSec - cursor });
+    const xs = [...bounds].sort((a, b) => a - b);
+
+    const segments: Segment[] = [];
+    for (let i = 0; i < xs.length - 1; i++) {
+      const a = xs[i];
+      const b = xs[i + 1];
+      if (b - a < 0.01) continue;
+      let chosen: TimelineClip | undefined;
+      for (const lane of lanes) {
+        chosen = lane.clips.find((c) => c.range.startSec <= a + 1e-6 && c.range.endSec >= b - 1e-6);
+        if (chosen) break;
+      }
+      const prev = segments[segments.length - 1];
+      if (prev && prev.clip?.id === chosen?.id && (prev.clip || !chosen)) {
+        prev.durSec += b - a; // merge with the previous span of the same clip/gap
+        continue;
+      }
+      if (chosen) {
+        // Clone with the source in-point advanced to where this span starts.
+        const clone = structuredClone(chosen);
+        if (clone.source.kind === 'asset') {
+          clone.source.inSec += a - chosen.range.startSec;
+        }
+        clone.range = { startSec: a, endSec: b };
+        segments.push({ startSec: a, durSec: b - a, clip: clone });
+      } else {
+        segments.push({ startSec: a, durSec: b - a });
+      }
+    }
 
     // ---- encode each segment to a normalized intermediate ----
     const segFiles: string[] = [];

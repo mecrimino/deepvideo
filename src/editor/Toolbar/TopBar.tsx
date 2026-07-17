@@ -12,7 +12,7 @@ export function TopBar() {
   const toggleChat = useAppStore((s) => s.toggleChat);
   const title = useEditorStore((s) => s.projectTitle);
   const renderJob = useEditorStore((s) => s.renderJob);
-  const requestRender = useEditorStore((s) => s.requestRender);
+  const setRenderDialogOpen = useEditorStore((s) => s.setRenderDialogOpen);
   const rendering = renderJob?.status === 'running' || renderJob?.status === 'queued';
 
   return (
@@ -135,7 +135,7 @@ export function TopBar() {
         ) : (
           <button
             className="hv-blue"
-            onClick={() => void requestRender()}
+            onClick={() => setRenderDialogOpen(true)}
             disabled={rendering}
             style={{
               display: 'flex',

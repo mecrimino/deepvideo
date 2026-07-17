@@ -6,6 +6,39 @@
 import type { ClipAsset, Project, Timeline, Transcript } from './edl.js';
 import type { MatchCandidate, PipelineRun, PipelineSettings } from './pipeline.js';
 
+/* ---------------------------------- auth --------------------------------- */
+
+/** A local Deep Video account (stored in server/data/users.json). */
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  createdAt: string;
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  name?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+/** POST /api/auth/signup and /api/auth/login both return this. */
+export interface AuthResponse {
+  user: AuthUser;
+  /** Opaque bearer token; send as Authorization: Bearer <token>. */
+  token: string;
+}
+
+/** GET /api/auth/me */
+export interface MeResponse {
+  user: AuthUser | null;
+}
+
 /* ---------------------------------- misc --------------------------------- */
 
 export interface HealthResponse {
@@ -102,12 +135,53 @@ export interface ListClipsResponse {
   assets: ClipAsset[];
 }
 
+/* ----------------------------- stock footage ----------------------------- */
+
+/** One Pexels/Pixabay result shown in the replace picker. */
+export interface StockResult {
+  id: string;
+  source: 'pexels' | 'pixabay';
+  thumbUrl: string;
+  videoUrl: string;
+  width?: number;
+  height?: number;
+  durationSec?: number;
+}
+
+/** POST /api/stock/search — live Pexels+Pixabay search by keyword. */
+export interface StockSearchRequest {
+  query: string;
+  /** Results per source (default 8). */
+  perSource?: number;
+}
+
+export interface StockSearchResponse {
+  query: string;
+  results: StockResult[];
+}
+
+/** POST /api/stock/import — download a chosen result into the local library. */
+export interface StockImportRequest {
+  result: StockResult;
+  /** Tags to attach (usually the search keyword words). */
+  tags?: string[];
+}
+
+export interface StockImportResponse {
+  asset: ClipAsset;
+}
+
 /* --------------------------------- render -------------------------------- */
 
 export interface RenderRequest {
   timeline: Timeline;
   /** Output container; always encoded locally with ffmpeg. */
   format?: 'mp4' | 'mov';
+  /** Output resolution override (defaults to the timeline's own size). */
+  width?: number;
+  height?: number;
+  /** Burn caption cues into the video (default true). false = clean video. */
+  burnCaptions?: boolean;
 }
 
 export interface RenderResponse {

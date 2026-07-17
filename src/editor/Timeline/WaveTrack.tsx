@@ -59,12 +59,11 @@ function usePeaks(url: string | null, buckets: number): Float32Array | null {
   return peaks;
 }
 
-export function WaveTrack({ contentSec }: { contentSec: number }) {
+export function WaveTrack({ contentSec, height = 26 }: { contentSec: number; height?: number }) {
   const timeline = useEditorStore((s) => s.timeline);
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const height = 26;
   const width = Math.max(50, Math.round(contentSec * pxPerSec));
   const audioUrl = timeline?.audioPath ? fileUrl(timeline.audioPath) : null;
   const buckets = Math.max(10, Math.floor(width / 3));
@@ -82,7 +81,7 @@ export function WaveTrack({ contentSec }: { contentSec: number }) {
       const h = Math.max(1, peaks[i] * (height - 4));
       ctx.fillRect(i * 3, mid - h / 2, 2, h);
     }
-  }, [peaks, width]);
+  }, [peaks, width, height]);
 
   const label = timeline?.audioPath
     ? `Narration: ${timeline.audioPath.split('/').pop()}`
