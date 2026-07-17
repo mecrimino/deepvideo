@@ -6,39 +6,6 @@
 import type { ClipAsset, Project, Timeline, Transcript } from './edl.js';
 import type { MatchCandidate, PipelineRun, PipelineSettings } from './pipeline.js';
 
-/* ---------------------------------- auth --------------------------------- */
-
-/** A local Deep Video account (stored in server/data/users.json). */
-export interface AuthUser {
-  id: string;
-  email: string;
-  name?: string;
-  createdAt: string;
-}
-
-export interface SignupRequest {
-  email: string;
-  password: string;
-  name?: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-/** POST /api/auth/signup and /api/auth/login both return this. */
-export interface AuthResponse {
-  user: AuthUser;
-  /** Opaque bearer token; send as Authorization: Bearer <token>. */
-  token: string;
-}
-
-/** GET /api/auth/me */
-export interface MeResponse {
-  user: AuthUser | null;
-}
-
 /* ---------------------------------- misc --------------------------------- */
 
 export interface HealthResponse {

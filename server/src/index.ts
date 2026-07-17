@@ -20,11 +20,7 @@ import type {
   AgentChatRequest,
   AgentChatResponse,
   ApiError,
-  AuthResponse,
   CancelRunResponse,
-  LoginRequest,
-  MeResponse,
-  SignupRequest,
   DeleteProjectResponse,
   HealthResponse,
   IndexClipsRequest,
@@ -67,7 +63,6 @@ import { deleteProject, listProjects, loadProject, saveProject } from './project
 import { ffmpegAvailable, probe, renderTimeline } from './render.js';
 import { createRunStore } from './runstore.js';
 import { transcribeAudio } from './transcribe.js';
-import { login, logout, me, signup } from './users.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 
@@ -112,44 +107,6 @@ function errorPayload(err: unknown): ApiError {
 function notImplemented(what: string): ApiError {
   return { error: `${what} is not implemented yet`, notImplemented: true };
 }
-
-/* ---------------------------------- auth ---------------------------------- */
-
-function bearerToken(req: { headers: { authorization?: string } }): string | undefined {
-  const h = req.headers.authorization;
-  return h?.startsWith('Bearer ') ? h.slice(7) : undefined;
-}
-
-app.post<{ Body: SignupRequest }>('/api/auth/signup', async (req, reply) => {
-  try {
-    if (!req.body?.email || !req.body?.password) {
-      return reply.code(400).send({ error: 'email and password are required' } satisfies ApiError);
-    }
-    return (await signup(req.body)) satisfies AuthResponse;
-  } catch (err) {
-    return reply.code(400).send(errorPayload(err));
-  }
-});
-
-app.post<{ Body: LoginRequest }>('/api/auth/login', async (req, reply) => {
-  try {
-    if (!req.body?.email || !req.body?.password) {
-      return reply.code(400).send({ error: 'email and password are required' } satisfies ApiError);
-    }
-    return (await login(req.body)) satisfies AuthResponse;
-  } catch (err) {
-    return reply.code(401).send(errorPayload(err));
-  }
-});
-
-app.get('/api/auth/me', async (req): Promise<MeResponse> => {
-  return { user: await me(bearerToken(req)) };
-});
-
-app.post('/api/auth/logout', async (req) => {
-  await logout(bearerToken(req));
-  return { ok: true };
-});
 
 /* --------------------------------- health -------------------------------- */
 

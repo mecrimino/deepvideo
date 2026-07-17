@@ -15,7 +15,6 @@ import {
 import type { PipelineStage } from '@deep-video/shared';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ProjectSummary } from '@deep-video/shared';
-import { UserMenu } from '../auth/UserMenu';
 import { Avatar } from '../components/Avatar';
 import { GradientLogo } from '../components/GradientLogo';
 import { ModelModal } from '../components/ModelModal';
@@ -216,7 +215,7 @@ export function HomeScreen() {
             />
             {credits.toLocaleString()} credits
           </div>
-          <UserMenu />
+          <Avatar size={34} />
         </div>
       </div>
 
