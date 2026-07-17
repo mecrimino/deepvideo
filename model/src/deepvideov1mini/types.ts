@@ -97,6 +97,11 @@ export interface MiniInput {
   audioPath?: string;
   settings?: Partial<MiniSettings>;
   onProgress?: (run: PipelineRun) => void;
+  /**
+   * Cooperative cancellation: checked at every stage boundary and between
+   * segments. Returning true aborts the run with "Cancelled by user".
+   */
+  shouldStop?: () => boolean;
 }
 
 /** Everything the server needs to assemble + download the final timeline. */

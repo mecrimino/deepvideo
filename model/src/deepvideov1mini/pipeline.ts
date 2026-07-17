@@ -39,7 +39,9 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
     stage: 'segment',
     stages: STAGE_ORDER.map((stage): StageResult => ({ stage, status: 'pending' })),
     input: { script: input.script, audioPath: input.audioPath },
+    progress: { model: 'mini', segments: [] },
   };
+  const prog = (beatId: string) => run.progress!.segments.find((p) => p.beatId === beatId)!;
   const stageOf = (s: PipelineStage) => run.stages.find((x) => x.stage === s)!;
   const emit = () => input.onProgress?.(structuredClone(run));
   const start = (s: PipelineStage) => {
@@ -56,6 +58,9 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
     if (output !== undefined) st.output = output;
     emit();
   };
+  const checkStop = () => {
+    if (input.shouldStop?.()) throw new Error('Cancelled by user');
+  };
 
   try {
     /* -------- segment: transcription/script + clause segmentation -------- */
@@ -70,16 +75,22 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
       text: s.text,
       range: { startSec: s.startSec, endSec: s.endSec },
     }));
+    run.progress!.segments = segments.map((s) => ({ beatId: s.id, text: s.text }));
     finish('segment', { segmentCount: segments.length });
 
     /* ------------- queries: niche (1x) + keyword per segment ------------ */
     start('queries');
+    checkStop();
     const niche = await detectNiche(script, deps.nicheLLM);
+    run.progress!.niche = niche;
+    emit();
     const keywords = new Map<string, string>();
     for (const seg of segments) {
+      checkStop();
       const kw = await extractKeyword(niche, seg, deps.keywordLLM, deps.nicheLLM);
       keywords.set(seg.id, kw);
       run.beats!.find((b) => b.id === seg.id)!.queries = { said: seg.text, shown: kw, keywords: [kw] };
+      prog(seg.id).keyword = kw;
       emit();
     }
     finish('queries', { niche });
@@ -88,8 +99,11 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
     start('retrieve');
     const pools = new Map<string, StockCandidate[]>();
     for (const seg of segments) {
+      checkStop();
       const pool = await retrieveCandidates([keywords.get(seg.id)!], deps.stock, settings.perSourceCount);
       pools.set(seg.id, pool.slice(0, settings.maxCandidatesPerSegment));
+      prog(seg.id).pooled = pool.length;
+      prog(seg.id).thumbs = pool.slice(0, 4).map((c) => ({ url: c.thumbUrl, source: c.source }));
       emit();
     }
     finish('retrieve', { pooled: [...pools.values()].reduce((n, p) => n + p.length, 0) });
@@ -98,6 +112,7 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
     start('rerank');
     const ranked = new Map<string, StockCandidate[]>();
     for (const seg of segments) {
+      checkStop();
       ranked.set(seg.id, await rerankCandidates(keywords.get(seg.id)!, pools.get(seg.id)!, deps.embedder));
       emit();
     }
@@ -108,6 +123,7 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
     const usedIds = await deps.usage.usedClipIds(input.projectId);
     const picks: SegmentPick[] = [];
     for (const seg of segments) {
+      checkStop();
       const kw = keywords.get(seg.id)!;
       const penalized = applyRepeatPenalty(ranked.get(seg.id)!, usedIds, settings.repeatPenalty);
       const pick = await pickClip(seg, kw, penalized, deps, usedIds, settings);
@@ -116,6 +132,12 @@ export async function runMiniMatching(deps: MiniDeps, input: MiniInput): Promise
         await deps.usage.commitPick(input.projectId, pick.candidate.id, seg.startSec);
         usedIds.add(pick.candidate.id);
       }
+      prog(seg.id).pick = {
+        source: pick.candidate?.source ?? 'none',
+        score: Math.round(pick.score * 1000) / 1000,
+        status: pick.status,
+        thumb: pick.candidate?.thumbUrl,
+      };
       emit();
     }
     run.picks = picks.map((p): PickDecision => {

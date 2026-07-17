@@ -8,6 +8,7 @@ import {
   Captions,
   Check,
   Download,
+  Layers,
   Loader2,
   Minus,
   Pause,
@@ -55,8 +56,9 @@ export function TransportBar() {
   const showCaptions = useEditorStore((s) => s.showCaptions);
   const toggleCaptions = useEditorStore((s) => s.toggleCaptions);
   const splitAtPlayhead = useEditorStore((s) => s.splitAtPlayhead);
+  const addLayer = useEditorStore((s) => s.addLayer);
   const renderJob = useEditorStore((s) => s.renderJob);
-  const requestRender = useEditorStore((s) => s.requestRender);
+  const setRenderDialogOpen = useEditorStore((s) => s.setRenderDialogOpen);
   const saveState = useEditorStore((s) => s.saveState);
   const toggleSettings = useAppStore((s) => s.toggleSettings);
 
@@ -125,6 +127,14 @@ export function TransportBar() {
         </button>
         <button className="hv-rail" style={ghostBtn()} onClick={splitAtPlayhead} title="Split clip at playhead (S)">
           <Scissors size={14} />
+        </button>
+        <button
+          className="hv-rail"
+          style={ghostBtn()}
+          onClick={addLayer}
+          title="Add a video/image layer above (drag clips between layers)"
+        >
+          <Layers size={14} />
         </button>
       </div>
 
@@ -248,7 +258,7 @@ export function TransportBar() {
           <button
             className="hv-rail"
             style={{ ...ghostBtn(false, rendering), width: 'auto', padding: '0 8px', gap: 6, display: 'flex', alignItems: 'center' }}
-            onClick={() => void requestRender()}
+            onClick={() => setRenderDialogOpen(true)}
             disabled={rendering}
             title="Export video (ffmpeg)"
           >

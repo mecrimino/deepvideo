@@ -79,6 +79,11 @@ export interface RunPipelineResponse {
   run: PipelineRun;
 }
 
+/** POST /api/pipeline/run/:id/cancel */
+export interface CancelRunResponse {
+  ok: boolean;
+}
+
 /* --------------------------------- media --------------------------------- */
 
 export interface UploadMediaResponse {
@@ -97,12 +102,53 @@ export interface ListClipsResponse {
   assets: ClipAsset[];
 }
 
+/* ----------------------------- stock footage ----------------------------- */
+
+/** One Pexels/Pixabay result shown in the replace picker. */
+export interface StockResult {
+  id: string;
+  source: 'pexels' | 'pixabay';
+  thumbUrl: string;
+  videoUrl: string;
+  width?: number;
+  height?: number;
+  durationSec?: number;
+}
+
+/** POST /api/stock/search — live Pexels+Pixabay search by keyword. */
+export interface StockSearchRequest {
+  query: string;
+  /** Results per source (default 8). */
+  perSource?: number;
+}
+
+export interface StockSearchResponse {
+  query: string;
+  results: StockResult[];
+}
+
+/** POST /api/stock/import — download a chosen result into the local library. */
+export interface StockImportRequest {
+  result: StockResult;
+  /** Tags to attach (usually the search keyword words). */
+  tags?: string[];
+}
+
+export interface StockImportResponse {
+  asset: ClipAsset;
+}
+
 /* --------------------------------- render -------------------------------- */
 
 export interface RenderRequest {
   timeline: Timeline;
   /** Output container; always encoded locally with ffmpeg. */
   format?: 'mp4' | 'mov';
+  /** Output resolution override (defaults to the timeline's own size). */
+  width?: number;
+  height?: number;
+  /** Burn caption cues into the video (default true). false = clean video. */
+  burnCaptions?: boolean;
 }
 
 export interface RenderResponse {
@@ -131,9 +177,21 @@ export interface StartRenderResponse {
 
 /* ------------------------------- agent chat ------------------------------- */
 
+/** A timeline clip the user attached to the message as a mention chip. */
+export interface AgentMention {
+  clipId: string;
+  /** 1-based index on the video track. */
+  index: number;
+  label: string;
+}
+
 export interface AgentChatRequest {
   message: string;
   timeline: Timeline;
+  /** Clips referenced by "Add to Deep Video Agent" mention chips. */
+  mentions?: AgentMention[];
+  /** Fast = library-only quick edits; Smart = deeper work incl. stock downloads. */
+  effort?: 'fast' | 'smart';
 }
 
 export interface AgentChatResponse {
@@ -158,6 +216,11 @@ export interface SaveProjectResponse {
 
 export interface LoadProjectResponse {
   project: Project;
+}
+
+/** DELETE /api/project/:id */
+export interface DeleteProjectResponse {
+  ok: boolean;
 }
 
 /** Card-sized project summary for listings (Home "Recent Generations"). */

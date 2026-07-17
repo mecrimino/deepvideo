@@ -95,6 +95,11 @@ matches (fills `GenerationSlot`s with stills until real video gen exists):
 | Example | `https://image.pollinations.ai/prompt/a%20MiG-25%20climbing%20through%20clouds` |
 | Returns | the image bytes directly — save under `server/data/` and index it |
 
+## Authentication
+
+None. The web app is open — there is no login or signup gate; opening the
+app goes straight to the Home screen.
+
 ## Key-rotation pattern (all providers)
 
 ```ts

@@ -239,16 +239,30 @@ export function PreviewPane() {
           </button>
         </div>
       </div>
-      {/* resize pill */}
+      {/* resize handle: drag vertically to trade preview space for timeline space */}
       <div
-        style={{
-          width: 44,
-          height: 4,
-          borderRadius: 3,
-          background: '#3a3a42',
-          margin: '7px 0 3px',
+        onPointerDown={(e) => {
+          e.preventDefault();
+          const startY = e.clientY;
+          const startH = useEditorStore.getState().timelineH;
+          const move = (ev: PointerEvent) =>
+            useEditorStore.getState().setTimelineH(startH - (ev.clientY - startY));
+          const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+          };
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', up);
         }}
-      />
+        title="Drag to resize the timeline"
+        style={{
+          padding: '5px 30px 3px',
+          cursor: 'ns-resize',
+          touchAction: 'none',
+        }}
+      >
+        <div style={{ width: 44, height: 4, borderRadius: 3, background: '#3a3a42' }} />
+      </div>
     </div>
   );
 }

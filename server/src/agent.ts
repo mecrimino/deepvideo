@@ -14,7 +14,7 @@
  * regenerate every clip inside a time range ("regenerate 8:00 to 10:00").
  */
 
-import type { CaptionCue, ClipAsset, Timeline, TimelineClip } from '@deep-video/shared';
+import type { AgentMention, CaptionCue, ClipAsset, Timeline, TimelineClip } from '@deep-video/shared';
 import {
   OllamaClient,
   insertClip,
@@ -45,6 +45,10 @@ interface AgentContext {
   actions: string[];
   db: ClipDb;
   embedder: ClipEmbedder;
+  /** Clips the user attached as mention chips ("this" refers to these). */
+  mentions: AgentMention[];
+  /** fast = library-only quick edits; smart = deeper work incl. stock downloads. */
+  effort: 'fast' | 'smart';
 }
 
 const stockSearch = createStockSearch();
@@ -66,9 +70,16 @@ function clipAt(t: Timeline, sec: number): TimelineClip | undefined {
   return videoClips(t).find((c) => c.range.startSec <= sec && sec < c.range.endSec);
 }
 
-function clipByRef(t: Timeline, ref: string | number): TimelineClip | undefined {
+function clipByRef(t: Timeline, ref: string | number, mentions: AgentMention[] = []): TimelineClip | undefined {
   const clips = videoClips(t);
   if (typeof ref === 'number') return clips[ref - 1] ?? clipAt(t, ref);
+  // "this" / "it" / "selected" resolve to the first attached mention chip.
+  if (/^(this|it|selected|attached)$/i.test(ref.trim()) && mentions.length > 0) {
+    const byMention = clips.find((c) => c.id === mentions[0].clipId);
+    if (byMention) return byMention;
+  }
+  const hash = ref.trim().match(/^#?(\d+)$/);
+  if (hash) return clips[Number(hash[1]) - 1];
   const byId = clips.find((c) => c.id === ref);
   if (byId) return byId;
   const n = Number(ref);
@@ -138,12 +149,14 @@ async function findReplacement(
   const vec = await ctx.embedder.embedText(query);
   const hits = await ctx.db.search(vec, 8);
   const local = hits.find((h) => h.clipId !== excludeAssetId);
-  if (local && local.score >= 0.25) {
+  // Fast effort keeps edits snappy: library only, take any different match.
+  if (local && (ctx.effort === 'fast' || local.score >= 0.25)) {
     const [asset] = await ctx.db.getAssets([local.clipId]);
     if (asset) return { asset, inSec: local.inSec ?? 0, via: 'library' };
   }
+  if (ctx.effort === 'fast') return null;
 
-  // Stock fallback — real Pexels/Pixabay search + download + index.
+  // Smart effort: real Pexels/Pixabay search + download + index.
   try {
     const candidates = await stockSearch.search(query.split(/\s+/).slice(0, 5).join(' '), 4);
     for (const cand of candidates) {
@@ -334,7 +347,7 @@ function makeHandlers(ctx: AgentContext): Record<string, (args: unknown) => Prom
     },
     delete_clip: async (args) => {
       const { ref } = args as { ref: string };
-      const clip = clipByRef(ctx.timeline, ref);
+      const clip = clipByRef(ctx.timeline, ref, ctx.mentions);
       if (!clip) return { error: `clip not found: ${ref}` };
       ctx.timeline = removeClip(ctx.timeline, clip.id);
       ctx.actions.push(`Deleted clip "${clip.label ?? clip.id}".`);
@@ -342,7 +355,7 @@ function makeHandlers(ctx: AgentContext): Record<string, (args: unknown) => Prom
     },
     trim_clip: async (args) => {
       const { ref, startSec, endSec } = args as { ref: string; startSec?: number; endSec?: number };
-      const clip = clipByRef(ctx.timeline, ref);
+      const clip = clipByRef(ctx.timeline, ref, ctx.mentions);
       if (!clip) return { error: `clip not found: ${ref}` };
       ctx.timeline = trimClip(ctx.timeline, clip.id, { startSec, endSec });
       ctx.actions.push(`Trimmed clip "${clip.label ?? clip.id}".`);
@@ -350,7 +363,7 @@ function makeHandlers(ctx: AgentContext): Record<string, (args: unknown) => Prom
     },
     replace_clip: async (args) => {
       const { ref, query } = args as { ref: string; query: string };
-      const clip = clipByRef(ctx.timeline, ref);
+      const clip = clipByRef(ctx.timeline, ref, ctx.mentions);
       if (!clip) return { error: `clip not found: ${ref}` };
       const current = clip.source.kind === 'asset' ? clip.source.assetId : undefined;
       const found = await findReplacement(ctx, query, current);
@@ -416,10 +429,20 @@ const PLAN_OPS = `Operations you may plan (times are SECONDS on the project cloc
  * unreachable or answers with something unusable (caller falls back).
  */
 async function openRouterPlan(ctx: AgentContext, message: string): Promise<string | null> {
+  const mentionBlock =
+    ctx.mentions.length > 0
+      ? `\nATTACHED CLIPS — the user explicitly attached these mention chips. Words like "this", ` +
+        `"it" or "the clip" refer ONLY to these clips. Any per-clip operation MUST use ` +
+        `ref "${ctx.mentions[0].index}"${ctx.mentions.length > 1 ? ' (or another attached index)' : ''}, ` +
+        `never a different clip:\n` +
+        ctx.mentions.map((m) => `- clip #${m.index}: ${m.label}`).join('\n') +
+        '\n'
+      : '';
   const prompt =
     `You are Deep Video Agent, the editing agent inside the Deep Video editor. ` +
     `You edit the user's timeline by planning operations.\n\n` +
-    `CURRENT TIMELINE\n${timelineBrief(ctx.timeline)}\n\n${PLAN_OPS}\n\n` +
+    `CURRENT TIMELINE\n${timelineBrief(ctx.timeline)}\n${mentionBlock}\n${PLAN_OPS}\n\n` +
+    `EFFORT: ${ctx.effort} (${ctx.effort === 'fast' ? 'prefer minimal, quick edits' : 'thorough — replacements may download fresh stock footage'})\n\n` +
     `USER REQUEST\n${message}\n\n` +
     `Reply with ONLY a JSON object, no markdown fences:\n` +
     `{"reply":"<short confirmation or answer for the user>","actions":[{...},...]}\n` +
@@ -451,6 +474,22 @@ async function openRouterPlan(ctx: AgentContext, message: string): Promise<strin
   const actions = Array.isArray(plan.actions) ? (plan.actions as PlannedAction[]) : [];
   const handlers = makeHandlers(ctx);
   const problems: string[] = [];
+
+  // Guardrail: with exactly one attached clip and a "this"/"it" request, pin
+  // per-clip ops to the mentioned clip — free-tier models sometimes retarget.
+  if (ctx.mentions.length === 1 && /\b(this|it)\b/i.test(message)) {
+    const wanted = String(ctx.mentions[0].index);
+    for (const action of actions) {
+      if (
+        action &&
+        typeof action.op === 'string' &&
+        ['replace_clip', 'trim_clip', 'delete_clip'].includes(action.op) &&
+        String(action.ref ?? '') !== wanted
+      ) {
+        action.ref = wanted;
+      }
+    }
+  }
 
   for (const action of actions.slice(0, 20)) {
     if (!action || typeof action.op !== 'string') continue;
@@ -571,7 +610,7 @@ async function parseCommand(ctx: AgentContext, message: string): Promise<string>
     return res.error ?? `Done — clip ${m[1]} trimmed.`;
   }
 
-  m = t(/replace\s+clip\s+(\S+)\s+with\s+(.+)/i);
+  m = t(/replace\s+(?:clip\s+)?(this|it|selected|#?\d+)\s+with\s+(.+)/i) ?? t(/replace\s+clip\s+(\S+)\s+with\s+(.+)/i);
   if (m) {
     const res = (await handlers.replace_clip({ ref: m[1], query: m[2] })) as {
       error?: string;
@@ -602,12 +641,16 @@ export async function agentChat(input: {
   db: ClipDb;
   embedder: ClipEmbedder;
   ollama?: OllamaClient;
+  mentions?: AgentMention[];
+  effort?: 'fast' | 'smart';
 }): Promise<AgentResult> {
   const ctx: AgentContext = {
     timeline: structuredClone(input.timeline),
     actions: [],
     db: input.db,
     embedder: input.embedder,
+    mentions: input.mentions ?? [],
+    effort: input.effort ?? 'smart',
   };
 
   // 1. OpenRouter (tencent/hy3:free) — the primary brain.
@@ -633,7 +676,12 @@ export async function agentChat(input: {
             content:
               'You are Deep Video Agent, a video-editing assistant inside the Deep Video editor. ' +
               'Use the tools to inspect and edit the timeline the user is working on. ' +
-              'Times are seconds on the project clock. Confirm what you changed, briefly.',
+              'Times are seconds on the project clock. Confirm what you changed, briefly.' +
+              (ctx.mentions.length > 0
+                ? ` The user attached these clips (referenced as "this"/"it"): ${ctx.mentions
+                    .map((m) => `#${m.index} "${m.label}"`)
+                    .join(', ')}.`
+                : ''),
           },
           { role: 'user', content: input.message },
         ],

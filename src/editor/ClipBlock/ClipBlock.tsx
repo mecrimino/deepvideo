@@ -15,36 +15,61 @@ import { gradients } from '../../theme';
 interface DragState {
   kind: 'move' | 'trim-start' | 'trim-end';
   dSec: number;
+  /** Vertical offset (px) while moving — crossing a lane switches layers. */
+  dY: number;
 }
 
-export function ClipBlock({ clip, asset }: { clip: TimelineClip; asset?: ClipAsset }) {
+export function ClipBlock({
+  clip,
+  asset,
+  laneH = 36,
+}: {
+  clip: TimelineClip;
+  asset?: ClipAsset;
+  laneH?: number;
+}) {
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const selected = useEditorStore((s) => s.selectedClipId === clip.id);
   const selectClip = useEditorStore((s) => s.selectClip);
   const moveClip = useEditorStore((s) => s.moveClip);
+  const moveClipLane = useEditorStore((s) => s.moveClipLane);
   const trimClipEdge = useEditorStore((s) => s.trimClipEdge);
   const [drag, setDrag] = useState<DragState | null>(null);
+
+  // Row pitch: lane height + the 4px gap between TrackRows.
+  const lanePitch = laneH + 4;
+  const laneDeltaOf = (dY: number) => Math.round(dY / lanePitch);
 
   const start = clip.range.startSec + (drag?.kind === 'move' || drag?.kind === 'trim-start' ? drag.dSec : 0);
   const end = clip.range.endSec + (drag?.kind === 'move' || drag?.kind === 'trim-end' ? drag.dSec : 0);
   const left = Math.max(0, start) * pxPerSec;
   const width = Math.max(4, (end - Math.max(0, start)) * pxPerSec);
+  const dragLaneDelta = drag?.kind === 'move' ? laneDeltaOf(drag.dY) : 0;
 
   const beginDrag = (kind: DragState['kind']) => (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     selectClip(clip.id);
     const startX = e.clientX;
+    const startY = e.clientY;
     const move = (ev: PointerEvent) => {
-      setDrag({ kind, dSec: (ev.clientX - startX) / pxPerSec });
+      setDrag({
+        kind,
+        dSec: (ev.clientX - startX) / pxPerSec,
+        dY: kind === 'move' ? ev.clientY - startY : 0,
+      });
     };
     const up = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       const dSec = (ev.clientX - startX) / pxPerSec;
+      const laneDelta = kind === 'move' ? laneDeltaOf(ev.clientY - startY) : 0;
       setDrag(null);
-      if (Math.abs(dSec) < 0.02) return; // click, not a drag
-      if (kind === 'move') moveClip(clip.id, clip.range.startSec + dSec);
+      if (Math.abs(dSec) < 0.02 && laneDelta === 0) return; // click, not a drag
+      if (kind === 'move') {
+        if (laneDelta !== 0) moveClipLane(clip.id, laneDelta, clip.range.startSec + dSec);
+        else moveClip(clip.id, clip.range.startSec + dSec);
+      }
       if (kind === 'trim-start') trimClipEdge(clip.id, 'start', clip.range.startSec + dSec);
       if (kind === 'trim-end') trimClipEdge(clip.id, 'end', clip.range.endSec + dSec);
     };
@@ -78,8 +103,11 @@ export function ClipBlock({ clip, asset }: { clip: TimelineClip; asset?: ClipAss
             ? '#22252c'
             : 'linear-gradient(160deg,#3a4a6c,#7285b4)',
         opacity: drag ? 0.85 : 1,
-        zIndex: selected ? 2 : 1,
+        zIndex: drag ? 3 : selected ? 2 : 1,
         userSelect: 'none',
+        // Snap the preview to the lane it would land on.
+        transform: dragLaneDelta !== 0 ? `translateY(${dragLaneDelta * lanePitch}px)` : undefined,
+        boxShadow: dragLaneDelta !== 0 ? '0 0 0 2px rgba(111,155,255,.7)' : undefined,
       }}
     >
       {!isSlot && thumb && (

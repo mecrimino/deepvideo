@@ -47,6 +47,33 @@ export interface StageResult<T = unknown> {
 }
 
 /** A full pipeline run, persisted by stage6_history. */
+/** Live per-segment detail streamed to the processing monitor UI. */
+export interface SegmentProgress {
+  beatId: string;
+  text: string;
+  /** Stage 3's stock-search keyword, set the moment it's extracted. */
+  keyword?: string;
+  /** Candidates pooled for this segment (stage 4). */
+  pooled?: number;
+  /** A few candidate thumbnails, so the monitor shows the footage considered. */
+  thumbs?: { url: string; source: string }[];
+  /** The chosen clip once stage 6 decides. */
+  pick?: {
+    source: string;
+    score: number;
+    status: 'auto' | 'auto-fallback' | 'review' | 'none';
+    thumb?: string;
+  };
+}
+
+/** Everything-the-agent-is-doing feed for the processing screen. */
+export interface RunProgressInfo {
+  model?: 'mini' | 'pro';
+  /** Detected niche (Deep Video v1 Mini step 2), set once per project. */
+  niche?: string;
+  segments: SegmentProgress[];
+}
+
 export interface PipelineRun {
   id: string;
   createdAt: string;
@@ -63,6 +90,8 @@ export interface PipelineRun {
   beats?: Beat[];
   picks?: PickDecision[];
   timeline?: Timeline;
+  /** Live monitor feed (niche, keywords, candidate footage, picks). */
+  progress?: RunProgressInfo;
 }
 
 /** Tunable pipeline settings (defaults live in model/config.ts). */
