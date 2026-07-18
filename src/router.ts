@@ -1,25 +1,29 @@
 /**
- * Screen routing — every feature has its OWN URL:
+ * Screen routing — every feature AND every project gets its OWN unique URL:
  *
- *   /            Home (prompt, model picker, recent generations)
- *   /theme       Theme selection
- *   /setup       Creative setup + cost estimate
- *   /processing  Live pipeline monitor
- *   /editor      The timeline editor
+ *   /                     Home (prompt, model picker, recent generations)
+ *   /theme                Theme selection
+ *   /setup                Creative setup + cost estimate
+ *   /processing/:runId    Live pipeline monitor for one generation run
+ *   /editor/:projectId    The timeline editor for one specific project
  *
- * The Zustand store stays the source of truth for `screen`; this module keeps
- * the browser URL and the store in sync both ways (pushState on screen change,
- * popstate/deep-link → store), so back/forward and direct links all work.
+ * Two Zustand stores are the source of truth: `useAppStore.screen` (which page)
+ * and `useEditorStore.projectId` / `useAppStore.gen.runId` (which document).
+ * This module keeps the browser URL and those stores in sync both ways, so
+ * back/forward, refresh and direct links to a specific project all work.
  */
 
 import { useAppStore } from './store/useAppStore';
+import { useEditorStore } from './store/useEditorStore';
+import { loadProject } from './services/project';
 
 export type Screen = 'home' | 'theme' | 'setup' | 'processing' | 'editor';
 
 /** Forward flow order, for reference/progress UIs. */
 export const SCREEN_FLOW: Screen[] = ['home', 'theme', 'setup', 'processing', 'editor'];
 
-export const SCREEN_PATHS: Record<Screen, string> = {
+/** Base path segment for each screen (ids are appended for editor/processing). */
+export const SCREEN_BASE: Record<Screen, string> = {
   home: '/',
   theme: '/theme',
   setup: '/setup',
@@ -27,49 +31,128 @@ export const SCREEN_PATHS: Record<Screen, string> = {
   editor: '/editor',
 };
 
-export function pathToScreen(pathname: string): Screen {
-  const clean = pathname.replace(/\/+$/, '') || '/';
-  const match = (Object.entries(SCREEN_PATHS) as [Screen, string][]).find(([, p]) => p === clean);
-  return match?.[0] ?? 'home';
+interface ParsedPath {
+  screen: Screen;
+  /** The id segment after the base, if present (projectId or runId). */
+  id?: string;
 }
 
-/**
- * Deep-link guard: /processing without a live generation has nothing to show —
- * fall back to home. /editor is always fine (it opens a blank document).
- */
-function guardScreen(screen: Screen): Screen {
-  if (screen === 'processing' && !useAppStore.getState().gen) return 'home';
-  return screen;
+export function parsePath(pathname: string): ParsedPath {
+  const parts = pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+  const [head, id] = parts;
+  switch (head) {
+    case 'theme':
+      return { screen: 'theme' };
+    case 'setup':
+      return { screen: 'setup' };
+    case 'processing':
+      return { screen: 'processing', id };
+    case 'editor':
+      return { screen: 'editor', id };
+    default:
+      return { screen: 'home' };
+  }
+}
+
+/** Back-compat helper used elsewhere: just the screen for a path. */
+export function pathToScreen(pathname: string): Screen {
+  return parsePath(pathname).screen;
+}
+
+/** The full URL path the current app state should live at (includes ids). */
+export function currentPath(): string {
+  const screen = useAppStore.getState().screen;
+  if (screen === 'editor') {
+    const pid = useEditorStore.getState().projectId;
+    return pid ? `/editor/${encodeURIComponent(pid)}` : '/editor';
+  }
+  if (screen === 'processing') {
+    const runId = useAppStore.getState().gen?.runId;
+    return runId ? `/processing/${encodeURIComponent(runId)}` : '/processing';
+  }
+  return SCREEN_BASE[screen];
 }
 
 let initialized = false;
+/** Set while we apply a URL → store change, to suppress the store → URL echo. */
+let applyingUrl = false;
 
-/** Call once (before render). Wires URL ⇄ store in both directions. */
+/**
+ * Adopt a URL into the stores. For a deep-linked /editor/:projectId that isn't
+ * the open document, load that project from the server first.
+ */
+async function applyUrl(pathname: string, isInitial: boolean): Promise<void> {
+  const { screen, id } = parsePath(pathname);
+  applyingUrl = true;
+  try {
+    if (screen === 'editor') {
+      const ed = useEditorStore.getState();
+      if (id && id !== ed.projectId) {
+        // Deep link to a specific project — load it, unless the editor already
+        // holds an unsaved fresh doc the user just started (no id in URL match).
+        try {
+          const { project } = await loadProject(id);
+          ed.openTimeline(project.timeline, { title: project.title, projectId: project.id });
+        } catch {
+          // Unknown/failed project id: on a deep link, bounce home; otherwise
+          // keep whatever document is already open.
+          if (isInitial) {
+            useAppStore.setState({ screen: 'home' });
+            return;
+          }
+        }
+      }
+      useAppStore.setState({ screen: 'editor', showModel: false, showPlus: false });
+      return;
+    }
+
+    if (screen === 'processing') {
+      // A run monitor only makes sense while a generation is live.
+      if (!useAppStore.getState().gen) {
+        useAppStore.setState({ screen: 'home' });
+        return;
+      }
+      useAppStore.setState({ screen: 'processing', showModel: false, showPlus: false });
+      return;
+    }
+
+    useAppStore.setState({ screen, showModel: false, showPlus: false });
+  } finally {
+    applyingUrl = false;
+  }
+}
+
+/** Call once (before render). Wires URL ⇄ stores in both directions. */
 export function initRouter(): void {
   if (initialized) return;
   initialized = true;
 
-  // Deep link / refresh: adopt the URL's screen.
-  const initial = guardScreen(pathToScreen(window.location.pathname));
-  if (useAppStore.getState().screen !== initial) {
-    useAppStore.setState({ screen: initial });
-  }
-  window.history.replaceState({}, '', SCREEN_PATHS[initial] + window.location.search);
+  // Deep link / refresh: adopt the URL. Replace with the normalized path once
+  // any async project load settles.
+  void applyUrl(window.location.pathname, true).then(() => {
+    window.history.replaceState({}, '', currentPath() + window.location.search);
+  });
 
-  // Back/forward buttons → store.
+  // Back/forward buttons → stores. Normalize the URL afterwards so a guarded
+  // redirect (e.g. /processing with no live run → home) reflects in the bar.
   window.addEventListener('popstate', () => {
-    const screen = guardScreen(pathToScreen(window.location.pathname));
-    useAppStore.setState({ screen, showModel: false, showPlus: false });
+    void applyUrl(window.location.pathname, false).then(() => {
+      const path = currentPath();
+      if (window.location.pathname !== path) {
+        window.history.replaceState({}, '', path + window.location.search);
+      }
+    });
   });
 
-  // Store → URL (covers go(), approve(), openGeneration(), everything).
-  let prev = useAppStore.getState().screen;
-  useAppStore.subscribe((state) => {
-    if (state.screen === prev) return;
-    prev = state.screen;
-    const path = SCREEN_PATHS[state.screen];
+  // Store → URL. Fires on BOTH screen changes and project/run id changes, so
+  // switching projects updates the URL even without a screen change.
+  const sync = () => {
+    if (applyingUrl) return;
+    const path = currentPath();
     if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path);
+      window.history.pushState({}, '', path + window.location.search);
     }
-  });
+  };
+  useAppStore.subscribe(sync);
+  useEditorStore.subscribe(sync);
 }
