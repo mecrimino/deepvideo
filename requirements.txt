@@ -13,10 +13,11 @@ python-dotenv>=1.0
 numpy>=1.26
 pillow>=10.0
 psutil>=5.9              # Developer Dashboard performance metrics
+langgraph>=0.2           # agent state machines (light — built on langchain-core)
+langchain-core>=0.3      # message/graph primitives used by the agents
 
-# Optional — the app boots and generates without these (they load lazily):
+# Optional — the app boots and runs without these (guarded / lazy imports):
+# chromadb>=0.5           # vector memory / RAG — HEAVY (onnxruntime). Guarded:
+#                         #   without it a hashed embedder is used, search is a no-op.
 # faster-whisper>=1.0     # local speech-to-text for uploaded audio (heavy: ctranslate2)
-# chromadb>=0.5           # vector memory / RAG (else a hashed embedder is used)
-# langgraph>=0.2          # full Ch19 WorkflowEngine (the mini pipeline ships its own)
-# langchain-core>=0.3     # message types used by the LangGraph agents
 # opencv-python-headless  # local vision / shot detection (Ch13/Ch14)

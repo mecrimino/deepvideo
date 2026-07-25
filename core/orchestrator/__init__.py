@@ -13,14 +13,27 @@ remain available for the editor's script→timeline flow.
 """
 
 from core.orchestrator.config import WorkflowConfig
-from core.orchestrator.dispatcher import AgentDispatcher
-from core.orchestrator.engine import WorkflowEngine
 from core.orchestrator.events import EventBus, get_event_bus
 from core.orchestrator.models import WorkflowResult, WorkflowState
 from core.orchestrator.progress import ProgressMonitor
 from core.orchestrator.recovery import ErrorClass, RecoveryManager
 from core.orchestrator.scheduler import Scheduler
 from core.orchestrator.state import ProjectState, RunRecord, RunRegistry, get_registry
+
+# WorkflowEngine + AgentDispatcher pull the full agent crew (LangGraph +
+# LangChain). Load them LAZILY so importing the orchestrator for the mini
+# pipeline / events / state doesn't require those heavy, optional deps (Ch20).
+_LAZY = {"WorkflowEngine": "engine", "AgentDispatcher": "dispatcher"}
+
+
+def __getattr__(name: str):  # PEP 562
+    if name in _LAZY:
+        import importlib
+
+        mod = importlib.import_module(f"core.orchestrator.{_LAZY[name]}")
+        return getattr(mod, name)
+    raise AttributeError(f"module 'core.orchestrator' has no attribute '{name}'")
+
 
 __all__ = [
     "WorkflowEngine", "WorkflowConfig", "WorkflowResult", "WorkflowState",

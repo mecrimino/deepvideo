@@ -11,7 +11,6 @@ focused, without losing information.
 
 from __future__ import annotations
 
-from langchain_core.messages import HumanMessage, SystemMessage
 
 from core.memory.store import Store, get_store
 from core.providers.llm import get_llm
@@ -39,9 +38,10 @@ class Compressor:
         self._store.archive(ref_id, text)  # keep the original (7.15)
         if self._llm.available:
             try:
-                system = SystemMessage(content="You compress documents into dense, factual summaries.")
-                human = HumanMessage(content=f"Summarize the following in <=200 words, keeping key facts:\n\n{text[:8000]}")
-                summary = await self._llm.chat(system.content, human.content, effort="fast", max_tokens=400)
+                summary = await self._llm.chat(
+                    "You compress documents into dense, factual summaries.",
+                    f"Summarize the following in <=200 words, keeping key facts:\n\n{text[:8000]}",
+                    effort="fast", max_tokens=400)
                 if summary.strip():
                     return summary.strip()
             except LLMUnavailable:

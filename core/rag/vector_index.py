@@ -11,8 +11,18 @@ from __future__ import annotations
 
 from typing import Optional
 
-import chromadb
-from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+try:  # ChromaDB optional (Ch20 cloud-first) — RAG index degrades to a no-op.
+    import chromadb
+    from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+    _CHROMA_OK = True
+except ImportError:  # pragma: no cover
+    _CHROMA_OK = False
+
+    class EmbeddingFunction:  # type: ignore[no-redef]
+        pass
+
+    Documents = list  # type: ignore[assignment,misc]
+    Embeddings = list  # type: ignore[assignment,misc]
 
 from core.config import get_settings
 from core.memory.embedder import get_embedder
@@ -34,6 +44,9 @@ class VectorIndex:
     _client = None
 
     def __init__(self) -> None:
+        self._col = None
+        if not _CHROMA_OK:
+            return
         if VectorIndex._client is None:
             path = get_settings().paths.cache / "chroma"
             path.mkdir(parents=True, exist_ok=True)
@@ -43,7 +56,7 @@ class VectorIndex:
         )
 
     def add(self, chunks: list[Chunk]) -> None:
-        if not chunks:
+        if not chunks or self._col is None:
             return
         try:
             self._col.upsert(
@@ -72,6 +85,8 @@ class VectorIndex:
         return [(i, 1.0 - float(d)) for i, d in zip(ids, dists)]
 
     def count(self) -> int:
+        if self._col is None:
+            return 0
         try:
             return self._col.count()
         except Exception:

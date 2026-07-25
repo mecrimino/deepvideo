@@ -13,8 +13,18 @@ from __future__ import annotations
 
 from typing import Optional
 
-import chromadb
-from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+try:  # ChromaDB is optional (Ch20 cloud-first): without it, vector memory is a
+    import chromadb  # no-op and everything else keeps working (hashed embedder).
+    from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+    _CHROMA_OK = True
+except ImportError:  # pragma: no cover
+    _CHROMA_OK = False
+
+    class EmbeddingFunction:  # type: ignore[no-redef]
+        pass
+
+    Documents = list  # type: ignore[assignment,misc]
+    Embeddings = list  # type: ignore[assignment,misc]
 
 from core.config import get_settings
 from core.memory.embedder import get_embedder
@@ -35,6 +45,9 @@ class VectorStore:
     _client = None
 
     def __init__(self) -> None:
+        self._col = None
+        if not _CHROMA_OK:
+            return  # vector search disabled; add/search degrade to no-ops
         if VectorStore._client is None:
             path = get_settings().paths.cache / "chroma"
             path.mkdir(parents=True, exist_ok=True)
@@ -46,6 +59,8 @@ class VectorStore:
         )
 
     def add(self, rec_id: str, text: str, *, kind: str, scope: str) -> None:
+        if self._col is None:
+            return
         try:
             self._col.upsert(ids=[rec_id], documents=[text],
                              metadatas=[{"kind": kind, "scope": scope}])
@@ -59,6 +74,8 @@ class VectorStore:
             pass
 
     def count(self) -> int:
+        if self._col is None:
+            return 0
         try:
             return self._col.count()
         except Exception:
