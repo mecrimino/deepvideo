@@ -1,0 +1,18 @@
+# Deep Vision — Python core (core/) dependencies.
+# Install:  pip install -r requirements.txt
+# Heavy local models (torch/CLIP/whisper) are intentionally NOT required — the
+# core is cloud-first (Ch20) and falls back to a hashed embedder + cloud ASR.
+
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.7
+httpx>=0.27
+python-dotenv>=1.0
+numpy>=1.26
+pillow>=10.0
+faster-whisper>=1.0   # local speech-to-text (CPU int8); downloads model on first use
+
+# Optional (uncomment to enable richer local processing):
+# langgraph>=0.2          # swap-in graph engine (the core ships its own by default)
+# opencv-python-headless  # local vision / shot detection (Ch13/Ch14)
+# ffmpeg-python           # thin ffmpeg bindings (the core shells out directly)

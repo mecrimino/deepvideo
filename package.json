@@ -1,34 +1,19 @@
 {
-  "name": "deep-video",
+  "name": "deep-vision",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "description": "Local-first, retrieval-first video assembly: script/audio -> beats -> clip retrieval -> timeline -> editor.",
+  "description": "Deep Vision \u00e2\u20ac\u201d AI video creation studio. Monorepo: frontend (React editor), backend (API), core (Python agent pipeline), shared types.",
   "workspaces": [
-    "shared",
-    "model",
-    "server"
+    "frontend",
+    "backend",
+    "motion"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "npm run typecheck && vite build",
-    "preview": "vite preview",
-    "server": "npm run dev -w @deep-video/server",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && npm run typecheck --workspaces --if-present"
-  },
-  "dependencies": {
-    "lucide-react": "^0.400.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "zustand": "^4.5.4"
-  },
-  "devDependencies": {
-    "@types/node": "^20.14.10",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "^5.5.3",
-    "vite": "^5.3.3"
+    "dev": "npm run dev -w @deep-vision/frontend",
+    "dev:backend": "npm run dev -w @deep-vision/backend",
+    "dev:core": "python -m uvicorn core.main:app --host 127.0.0.1 --port 8000 --reload",
+    "build": "npm run build -w @deep-vision/frontend",
+    "typecheck": "npm run typecheck -w @deep-vision/frontend && npm run typecheck -w @deep-vision/backend"
   },
   "engines": {
     "node": ">=20"

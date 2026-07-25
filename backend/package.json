@@ -1,0 +1,27 @@
+{
+  "name": "@deep-vision/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deep Vision — Node.js API gateway. Serves /api to the frontend and bridges to the Python core (FastAPI).",
+  "main": "api/server.ts",
+  "scripts": {
+    "dev": "tsx watch api/server.ts",
+    "start": "tsx api/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/multipart": "8.3.0",
+    "@fastify/static": "7.0.4",
+    "fastify": "4.28.1",
+    "nanoid": "5.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "tsx": "4.16.2",
+    "typescript": "5.5.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

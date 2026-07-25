@@ -1,0 +1,11 @@
+{
+  "_comment": "Deep Vision runtime config (Ch20.14). Low-end-PC profile: heavy AI in the cloud, orchestration/editing/rendering local. Env vars override these.",
+  "llm": "cloud_api",
+  "image_generation": "cloud_api",
+  "voice_generation": "cloud_api",
+  "video_generation": "cloud_api",
+  "speech_recognition": "cloud_api",
+  "cache_enabled": true,
+  "max_parallel_api_calls": 3,
+  "local_rendering": true
+}

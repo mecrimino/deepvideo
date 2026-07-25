@@ -3,16 +3,30 @@ node_modules/
 
 # builds
 dist/
+build/
 *.tsbuildinfo
 
-# local data: clip index, renders, downloaded models (never commit)
-server/data/*
-!server/data/.gitkeep
-
-# env
+# env / secrets
 .env
+.env.*
+!.env.example
+
+# python (core/)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# runtime + generated data — keep the dirs (.gitkeep), ignore contents
+cache/**
+downloads/**
+temp/**
+logs/**
+projects/**
+!**/.gitkeep
 
 # misc
 *.log
 .DS_Store
 Thumbs.db
+motion/src/generated/
