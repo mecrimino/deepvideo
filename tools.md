@@ -27,36 +27,4 @@
 | Image Processing | OpenCV | ✅ | ✅ | ✅ | Keep |
 | Image Editing | Pillow | ✅ | ✅ | ✅ | Keep |
 | OCR | PaddleOCR | ✅ | ✅ | ✅ | Keep |
-| Backup OCR | Tesseract | ✅ | ✅ | Optional | Keep |
-| Speech-to-Text | faster-whisper | ✅ | ✅ | API first | Local later |
-| Browser Automation | Playwright | ✅ | ✅ | ✅ | Keep |
-| AI Browser | Browser Use | ✅ | ✅ | Later | Keep |
-| Downloader | yt-dlp | ✅ | ✅ | ✅ | Keep |
-| Gallery Downloader | gallery-dl | ✅ | ✅ | Optional | Keep |
-| Embedding Model | BGE / Nomic Embed | ✅ | ✅ | Later | Keep |
-| Logging (Python) | Loguru | ✅ | ✅ | ✅ | Keep |
-| Logging (Node) | Pino | ✅ | ✅ | ✅ | Keep |
-| Testing (Python) | Pytest | ✅ | ✅ | ✅ | Keep |
-| Testing (Frontend) | Vitest | ✅ | ✅ | ✅ | Keep |
-| E2E Testing | Playwright Test | ✅ | ✅ | Later | Keep |
-| Configuration | .env + Pydantic Settings | ✅ | ✅ | ✅ | Keep |
-| Storage | Local SSD | ✅ | ✅ | ✅ | MinIO |
-| Package Manager (Node) | pnpm | ✅ | ✅ | ✅ | Keep |
-| Package Manager (Python) | uv | ✅ | ✅ | ✅ | Keep |
-| Version Control | Git | ✅ | ✅ | ✅ | Keep |
-| IDE | VS Code | ✅ | ✅ | ✅ | Keep |
-| AI Coding Assistant | Claude Code | ❌ | Cloud | ✅ | Keep |
-| API Documentation | FastAPI OpenAPI | ✅ | ✅ | ✅ | Keep |
-| Monitoring | Prometheus | ✅ | ✅ | Later | Keep |
-| Dashboard | Grafana | ✅ | ✅ | Later | Keep |
-| Containers | Docker | ✅ | ✅ | Later | Keep |
 
-## AI Providers (Current)
-
-| Category | Recommended |
-|----------|-------------|
-| LLM | OpenAI, Anthropic, Gemini, Groq, OpenRouter |
-| Image Generation | OpenAI Images, Fal.ai, Replicate, Google Imagen |
-| Voice Generation | ElevenLabs, Cartesia, OpenAI TTS |
-| Search | Tavily, Brave Search |
-| Stock Images | Pexels API, Pixabay API |
