@@ -130,17 +130,11 @@ async def run_pipeline(
         transcript = await _acquire_transcript(script, audio_path)
         run.transcript = transcript
 
-        # ---- narration synthesis (Ch17.5 Voice Engine) --------------- #
-        # When the user didn't upload their own narration audio, speak the
-        # script with the chosen voice via the local Kokoro TTS. The resulting
-        # WAV becomes the project's narration track (played + waveformed in the
-        # editor). Honestly gated: if TTS is down, audio_path stays None.
-        if not audio_path and transcript.text.strip():
-            synthesized = await _synthesize_narration(
-                ctx, run.id, transcript.text, voice or get_settings().default_voice, run
-            )
-            if synthesized:
-                audio_path = synthesized
+        # ---- narration ------------------------------------------------ #
+        # TTS/voiceover is DISABLED: the user always uploads their own narration
+        # audio. If none was uploaded, the video is built without a voice track
+        # (no synthesis). The `voice` setting is kept in the UI but unused.
+        _ = voice  # intentionally unused — no TTS
 
         ctx.memory.working.set("audioPath", audio_path)
         if not ctx.memory.working.get("topic"):
