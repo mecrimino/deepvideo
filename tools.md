@@ -60,24 +60,3 @@
 | Voice Generation | ElevenLabs, Cartesia, OpenAI TTS |
 | Search | Tavily, Brave Search |
 | Stock Images | Pexels API, Pixabay API |
-| Stock Videos | Pexels API, Pixabay API |
-
-## Local AI (Future)
-
-| Category | Tool |
-|----------|------|
-| Local LLM | Ollama, llama.cpp, vLLM |
-| Image Generation | ComfyUI, FLUX, Stable Diffusion |
-| Voice Generation | Kokoro TTS, Piper TTS, F5-TTS |
-| Search Engine | SearXNG |
-| Vector Database | Qdrant |
-| Object Storage | MinIO |
-
-## Recommended Development Workflow
-
-1. Electron + React desktop app.
-2. Fastify (Node.js) backend.
-3. Python + LangGraph AI agents.
-4. Cloud APIs for LLM, image, and voice.
-5. FFmpeg for local rendering.
-6. Cache API responses.
