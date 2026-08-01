@@ -93,4 +93,4 @@ kept via `.gitkeep`.
 ## Rebuilding the core
 
 Target `shared/types/api.ts`; `frontend/src/services/*` will light up. Re-add a
-`/api` dev proxy to `frontend/vite.config.ts` when `backend/` serves.
+`/api` dev proxy to `frontend/vite.config.ts` when `backend/` serves..
