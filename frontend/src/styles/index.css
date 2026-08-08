@@ -39,9 +39,8 @@
     radial-gradient(55vw 50vh at 100% 100%, rgba(255, 138, 76, 0.05), transparent 60%),
     #0b0b0c;
   --home-hero:
-    radial-gradient(58vw 58vh at 16% 22%, rgba(255, 120, 44, 0.26), transparent 62%),
-    radial-gradient(52vw 54vh at 86% 78%, rgba(62, 92, 232, 0.3), transparent 60%),
-    #060608;
+    radial-gradient(90vw 46vh at 50% -18%, rgba(150, 155, 170, 0.08), transparent 58%),
+    #060607;
   --ph1: #1b1b20;
   --ph2: #161619;
 }
@@ -78,9 +77,8 @@
     radial-gradient(55vw 50vh at 100% 100%, rgba(255, 138, 76, 0.06), transparent 60%),
     #dcdce0;
   --home-hero:
-    radial-gradient(58vw 58vh at 16% 22%, rgba(255, 138, 76, 0.16), transparent 62%),
-    radial-gradient(52vw 54vh at 86% 78%, rgba(47, 107, 255, 0.14), transparent 60%),
-    #e7e7ea;
+    radial-gradient(90vw 46vh at 50% -18%, rgba(0, 0, 0, 0.05), transparent 58%),
+    #f1f1f3;
   --ph1: #d7d7dd;
   --ph2: #e3e3e8;
 }

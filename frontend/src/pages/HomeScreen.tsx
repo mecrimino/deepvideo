@@ -260,11 +260,20 @@ export function HomeScreen() {
           zIndex: 2,
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 30 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-.025em', margin: '0 0 10px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 34 }}>
+          <h1 style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-.033em', margin: '0 0 12px' }}>
             What will you create today?
           </h1>
-          <p style={{ margin: 0, color: colors.textDim, fontSize: 16 }}>
+          <p
+            style={{
+              margin: '0 auto',
+              maxWidth: 560,
+              color: colors.textFaint,
+              fontSize: 15.5,
+              lineHeight: 1.55,
+              letterSpacing: '-.01em',
+            }}
+          >
             Describe an idea and the agent produces a finished video — script, footage, motion
             graphics, and edit.
           </p>
@@ -275,10 +284,10 @@ export function HomeScreen() {
           style={{
             position: 'relative',
             background: colors.panel,
-            border: `1px solid ${colors.border9}`,
-            borderRadius: 24,
-            padding: '20px 20px 14px',
-            boxShadow: '0 26px 70px rgba(0,0,0,.5)',
+            border: `1px solid ${colors.border8}`,
+            borderRadius: 20,
+            padding: '18px 18px 13px',
+            boxShadow: '0 24px 60px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.05)',
           }}
         >
           <textarea
