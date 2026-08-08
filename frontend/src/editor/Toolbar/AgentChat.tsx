@@ -218,6 +218,7 @@ export function AgentChat() {
 
   return (
     <div
+      className="glass"
       style={{
         // Thin column like the reference editor; drag the left-edge handle to resize.
         width: agentW,

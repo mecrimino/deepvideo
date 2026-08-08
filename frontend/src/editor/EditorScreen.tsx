@@ -114,6 +114,7 @@ export function EditorScreen() {
           </div>
 
           <div
+            className="glass"
             style={{
               flexShrink: 0,
               height: timelineH,

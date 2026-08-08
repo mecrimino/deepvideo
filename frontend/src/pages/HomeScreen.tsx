@@ -18,6 +18,7 @@ import type { ProjectSummary } from '@deep-vision/shared';
 import { Avatar } from '../components/Avatar';
 import { GradientLogo } from '../components/GradientLogo';
 import { ModelModal } from '../components/ModelModal';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { models } from '../data/models';
 import { sampleScripts } from '../data/sample-scripts';
 import {
@@ -219,12 +220,12 @@ export function HomeScreen() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div
             title="Local credits balance — generations deduct their estimated cost"
+            className="glass"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              background: 'rgba(20,20,23,.7)',
-              backdropFilter: 'blur(8px)',
+              background: colors.raised,
               border: `1px solid ${colors.border9}`,
               padding: '7px 13px',
               borderRadius: 999,
@@ -244,6 +245,7 @@ export function HomeScreen() {
             />
             {credits.toLocaleString()} credits
           </div>
+          <ThemeToggle />
           <Avatar size={34} />
         </div>
       </div>
@@ -269,6 +271,7 @@ export function HomeScreen() {
         </div>
 
         <div
+          className="glass"
           style={{
             position: 'relative',
             background: colors.panel,
@@ -970,6 +973,7 @@ export function HomeScreen() {
           }}
         >
           <div
+            className="glass"
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 'min(640px, 92vw)',

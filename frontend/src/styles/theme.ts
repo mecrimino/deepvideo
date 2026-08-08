@@ -3,34 +3,38 @@
  * the recurring values and keep one-off values inline, mirroring the design.
  */
 
+// Values are CSS variables (defined in index.css for both the dark default and
+// the [data-theme="light"] palette) so the whole app — every component reads
+// these tokens inline — re-skins on a theme switch with no per-component edits.
+// The dark base is rgb(21,21,21) with translucent, blurred "glass" surfaces.
 export const colors = {
   // surfaces
-  bg: '#08080a',
-  bgAlt: '#0a0a0c',
-  bgEditor: '#0c0c0e',
-  bgBar: '#0e0e11',
-  panel: '#141417',
-  banner: '#15161a',
-  card: '#17171b',
-  raised: '#1b1b1f',
-  control: '#1f1f24',
-  chip: '#232329',
+  bg: 'var(--bg)',
+  bgAlt: 'var(--bg-alt)',
+  bgEditor: 'var(--bg-editor)',
+  bgBar: 'var(--bg-bar)',
+  panel: 'var(--panel)',
+  banner: 'var(--banner)',
+  card: 'var(--card)',
+  raised: 'var(--raised)',
+  control: 'var(--control)',
+  chip: 'var(--chip)',
   // borders
-  border6: 'rgba(255,255,255,.06)',
-  border7: 'rgba(255,255,255,.07)',
-  border8: 'rgba(255,255,255,.08)',
-  border9: 'rgba(255,255,255,.09)',
-  border10: 'rgba(255,255,255,.1)',
+  border6: 'var(--b6)',
+  border7: 'var(--b7)',
+  border8: 'var(--b8)',
+  border9: 'var(--b9)',
+  border10: 'var(--b10)',
   // text
-  text: '#ececee',
-  textSoft: '#dcdce0',
-  textBright: '#e7e7ea',
-  textMid: '#c9c9cf',
-  textDim: '#9a9aa1',
-  textFaint: '#8b8b92',
-  textGhost: '#6b6b72',
-  textMono: '#5c5c63',
-  // accents
+  text: 'var(--text)',
+  textSoft: 'var(--text-soft)',
+  textBright: 'var(--text-bright)',
+  textMid: 'var(--text-mid)',
+  textDim: 'var(--text-dim)',
+  textFaint: 'var(--text-faint)',
+  textGhost: 'var(--text-ghost)',
+  textMono: 'var(--text-mono)',
+  // accents (shared across themes)
   accent: '#2f6bff',
   accentHover: '#4880ff',
   playhead: '#ff4d4d',
@@ -42,11 +46,10 @@ export const gradients = {
   brand: 'linear-gradient(140deg,#ff8a4c,#2f6bff)',
   avatar: 'linear-gradient(140deg,#e05fa0,#7b5cff)',
   avatar2: 'linear-gradient(140deg,#4caf88,#2f6bff)',
-  homeHero:
-    'radial-gradient(58vw 58vh at 16% 22%, rgba(255,120,44,.26), transparent 62%), radial-gradient(52vw 54vh at 86% 78%, rgba(62,92,232,.30), transparent 60%), #060608',
-  placeholder: 'repeating-linear-gradient(135deg,#1b1b20 0 9px,#161619 9px 18px)',
-  placeholderLg: 'repeating-linear-gradient(135deg,#1b1b20 0 10px,#161619 10px 20px)',
-  placeholderSm: 'repeating-linear-gradient(135deg,#1b1b20 0 8px,#161619 8px 16px)',
+  homeHero: 'var(--home-hero)',
+  placeholder: 'repeating-linear-gradient(135deg,var(--ph1) 0 9px,var(--ph2) 9px 18px)',
+  placeholderLg: 'repeating-linear-gradient(135deg,var(--ph1) 0 10px,var(--ph2) 10px 20px)',
+  placeholderSm: 'repeating-linear-gradient(135deg,var(--ph1) 0 8px,var(--ph2) 8px 16px)',
   elementTrack: 'linear-gradient(180deg,#7d5cf0,#6538d2)',
   background: 'linear-gradient(140deg,#2f7d5f,#1f5c47)',
   themeSwatch: 'repeating-linear-gradient(135deg,#242429 0 7px,#1c1c21 7px 14px)',

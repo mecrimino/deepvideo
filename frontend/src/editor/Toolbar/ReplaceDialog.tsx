@@ -156,6 +156,7 @@ export function ReplaceDialog() {
       }}
     >
       <div
+        className="glass"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'min(720px, 94vw)',

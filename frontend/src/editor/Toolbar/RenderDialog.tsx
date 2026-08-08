@@ -40,6 +40,7 @@ export function RenderDialog() {
       }}
     >
       <div
+        className="glass"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'min(420px, 92vw)',

@@ -1,5 +1,96 @@
 /* Global styles — ported from Deep Video.dc.html's helmet block. */
 
+/* ---- theme palettes -----------------------------------------------------
+   Dark base is rgb(21,21,21). Surfaces are translucent so the `.glass`
+   backdrop blur reads as depth over the app background. The light theme keeps
+   a faint "blackish" tint (greyed whites + dark rgba borders). Every design
+   token in theme.ts maps to one of these vars, so a single [data-theme] flip
+   re-skins the whole app. */
+:root {
+  --bg: #101011;
+  --bg-alt: #131315;
+  --bg-editor: #0e0e0f;
+  --bg-bar: rgba(21, 21, 21, 0.72);
+  --panel: rgba(21, 21, 21, 0.72);
+  --banner: rgba(26, 26, 28, 0.7);
+  --card: rgba(32, 32, 35, 0.55);
+  --raised: rgba(38, 38, 42, 0.68);
+  --control: rgba(42, 42, 47, 0.8);
+  --chip: rgba(48, 48, 54, 0.82);
+  --b6: rgba(255, 255, 255, 0.06);
+  --b7: rgba(255, 255, 255, 0.07);
+  --b8: rgba(255, 255, 255, 0.08);
+  --b9: rgba(255, 255, 255, 0.09);
+  --b10: rgba(255, 255, 255, 0.1);
+  --text: #ececee;
+  --text-soft: #dcdce0;
+  --text-bright: #e7e7ea;
+  --text-mid: #c9c9cf;
+  --text-dim: #9a9aa1;
+  --text-faint: #8b8b92;
+  --text-ghost: #6b6b72;
+  --text-mono: #5c5c63;
+  --hover: rgba(255, 255, 255, 0.07);
+  --hover-strong: rgba(255, 255, 255, 0.11);
+  --hover-border: rgba(255, 255, 255, 0.16);
+  --scroll-thumb: rgba(255, 255, 255, 0.16);
+  --app-bg:
+    radial-gradient(60vw 55vh at 15% 0%, rgba(47, 107, 255, 0.06), transparent 60%),
+    radial-gradient(55vw 50vh at 100% 100%, rgba(255, 138, 76, 0.05), transparent 60%),
+    #0b0b0c;
+  --home-hero:
+    radial-gradient(58vw 58vh at 16% 22%, rgba(255, 120, 44, 0.26), transparent 62%),
+    radial-gradient(52vw 54vh at 86% 78%, rgba(62, 92, 232, 0.3), transparent 60%),
+    #060608;
+  --ph1: #1b1b20;
+  --ph2: #161619;
+}
+:root[data-theme='light'] {
+  --bg: #eaeaec;
+  --bg-alt: #e6e6e9;
+  --bg-editor: #e4e4e7;
+  --bg-bar: rgba(246, 246, 248, 0.72);
+  --panel: rgba(244, 244, 247, 0.72);
+  --banner: rgba(238, 238, 241, 0.72);
+  --card: rgba(255, 255, 255, 0.6);
+  --raised: rgba(255, 255, 255, 0.72);
+  --control: rgba(20, 20, 22, 0.05);
+  --chip: rgba(20, 20, 22, 0.07);
+  --b6: rgba(20, 20, 22, 0.08);
+  --b7: rgba(20, 20, 22, 0.1);
+  --b8: rgba(20, 20, 22, 0.12);
+  --b9: rgba(20, 20, 22, 0.14);
+  --b10: rgba(20, 20, 22, 0.16);
+  --text: #1b1b1e;
+  --text-soft: #26262a;
+  --text-bright: #111114;
+  --text-mid: #333338;
+  --text-dim: #55555c;
+  --text-faint: #6a6a72;
+  --text-ghost: #86868e;
+  --text-mono: #9a9aa1;
+  --hover: rgba(20, 20, 22, 0.06);
+  --hover-strong: rgba(20, 20, 22, 0.1);
+  --hover-border: rgba(20, 20, 22, 0.18);
+  --scroll-thumb: rgba(20, 20, 22, 0.22);
+  --app-bg:
+    radial-gradient(60vw 55vh at 15% 0%, rgba(47, 107, 255, 0.07), transparent 60%),
+    radial-gradient(55vw 50vh at 100% 100%, rgba(255, 138, 76, 0.06), transparent 60%),
+    #dcdce0;
+  --home-hero:
+    radial-gradient(58vw 58vh at 16% 22%, rgba(255, 138, 76, 0.16), transparent 62%),
+    radial-gradient(52vw 54vh at 86% 78%, rgba(47, 107, 255, 0.14), transparent 60%),
+    #e7e7ea;
+  --ph1: #d7d7dd;
+  --ph2: #e3e3e8;
+}
+
+/* Frosted-glass surface: translucent bg (from the token) + blurred backdrop. */
+.glass {
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -11,10 +102,11 @@ body,
   height: 100%;
 }
 body {
-  background: #08080a;
+  background: var(--app-bg);
+  background-attachment: fixed;
   font-family: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #ececee;
+  color: var(--text);
 }
 a {
   color: #7aa2ff;
@@ -32,7 +124,7 @@ svg.lucide {
   height: 9px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a30;
+  background: var(--scroll-thumb);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-track {
@@ -74,29 +166,29 @@ button {
   }
 }
 
-/* Hover utilities — one class per `style-hover` variant in the design file. */
+/* Hover utilities — theme-aware via the palette vars. */
 .hv-dark:hover {
-  background: #26262c !important;
+  background: var(--hover-strong) !important;
 }
 .hv-blue:hover {
   background: #4880ff !important;
 }
 .hv-row:hover {
-  background: #2b2b31 !important;
+  background: var(--hover-strong) !important;
 }
 .hv-panel:hover {
-  background: #1b1b1f !important;
+  background: var(--hover) !important;
 }
 .hv-input:hover {
-  background: #1d1d22 !important;
+  background: var(--hover) !important;
 }
 .hv-rail:hover {
-  background: #1b1b1f !important;
-  color: #ececee !important;
+  background: var(--hover) !important;
+  color: var(--text) !important;
 }
 .hv-card:hover {
-  border-color: rgba(255, 255, 255, 0.16) !important;
+  border-color: var(--hover-border) !important;
 }
 .hv-theme:hover {
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  border-color: var(--hover-border) !important;
 }
