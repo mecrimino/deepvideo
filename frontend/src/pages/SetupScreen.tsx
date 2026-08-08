@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  BadgeDollarSign,
   Ban,
   ChevronDown,
   ChevronLeft,
@@ -16,9 +15,8 @@ import { models } from '../data/models';
 import { themes } from '../data/themes';
 import { BackgroundPicker, bgLabel } from '../components/BackgroundPicker';
 import { VoicePicker } from '../components/VoicePicker';
-import { estimateCostCredits, estimateLengthSec } from '../utils/credits';
 import { brandOf, getActiveChannel } from '../utils/channel';
-import { formatDuration } from '../utils/format';
+import { estimateLengthSec, formatDuration } from '../utils/format';
 import { effectiveScript, useAppStore } from '../stores/useAppStore';
 import { colors, gradients } from '../styles/theme';
 
@@ -51,16 +49,14 @@ export function SetupScreen() {
     const base = name.includes('_') ? name.slice(name.indexOf('_') + 1) : name;
     return base.charAt(0).toUpperCase() + base.slice(1);
   };
-  const totalCredits = estimateCostCredits(sel.rateCreditsPerMin, lengthSec);
   const lengthLabel = `~${formatDuration(lengthSec)} min`;
 
-  const costRows = [
+  const summaryRows = [
     { k: 'Production model', v: sel.name.replace('Deep Video ', '') },
     { k: 'Theme', v: themeName.replace(' theme', '') },
     { k: 'Input', v: audio ? `Narration audio (${formatDuration(audio.durationSec)})` : 'Script / prompt' },
     { k: 'Voice', v: audio ? 'Uploaded audio' : prettyVoice(voice) },
     { k: 'Estimated length', v: lengthLabel },
-    { k: 'Rate', v: sel.credits },
   ];
 
   const chipButton: React.CSSProperties = {
@@ -111,8 +107,8 @@ export function SetupScreen() {
             Compliance &amp; Sourcing
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.textGhost }}>
-            <BadgeDollarSign size={15} />
-            Estimated Cost
+            <Sparkles size={15} />
+            Review
           </div>
         </div>
 
@@ -173,8 +169,7 @@ export function SetupScreen() {
           </button>
         </div>
         <p style={{ margin: '0 0 20px', color: colors.textFaint, fontSize: 14 }}>
-          Review the agent's understanding, adjust settings, and see estimated cost before
-          generation starts.
+          Review the agent's understanding and adjust settings before generation starts.
         </p>
 
         <div
@@ -465,7 +460,7 @@ export function SetupScreen() {
             </div>
           </div>
 
-          {/* estimated cost sidebar */}
+          {/* summary sidebar */}
           <div
             style={{
               position: 'sticky',
@@ -486,10 +481,10 @@ export function SetupScreen() {
                 marginBottom: 16,
               }}
             >
-              <BadgeDollarSign size={17} color={colors.textFaint} />
-              Estimated Cost
+              <Sparkles size={17} color={colors.textFaint} />
+              Summary
             </div>
-            {costRows.map((c) => (
+            {summaryRows.map((c, i) => (
               <div
                 key={c.k}
                 style={{
@@ -497,7 +492,8 @@ export function SetupScreen() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '10px 0',
-                  borderBottom: `1px solid ${colors.border6}`,
+                  borderBottom:
+                    i < summaryRows.length - 1 ? `1px solid ${colors.border6}` : 'none',
                   fontSize: 13.5,
                 }}
               >
@@ -505,25 +501,6 @@ export function SetupScreen() {
                 <span style={{ color: colors.textBright, fontWeight: 500 }}>{c.v}</span>
               </div>
             ))}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: 14,
-                marginTop: 4,
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: colors.accent }}>
-                {totalCredits} credits
-              </span>
-            </div>
-            <div
-              style={{ fontSize: 11.5, color: colors.textGhost, marginTop: 6, lineHeight: 1.5 }}
-            >
-              Final cost is calculated from actual rendered duration.
-            </div>
           </div>
         </div>
       </div>

@@ -1,11 +1,9 @@
 /* Global styles — ported from Deep Video.dc.html's helmet block. */
 
-/* ---- theme palettes -----------------------------------------------------
-   Dark base is rgb(21,21,21). Surfaces are translucent so the `.glass`
-   backdrop blur reads as depth over the app background. The light theme keeps
-   a faint "blackish" tint (greyed whites + dark rgba borders). Every design
-   token in theme.ts maps to one of these vars, so a single [data-theme] flip
-   re-skins the whole app. */
+/* ---- theme palette ------------------------------------------------------
+   Dark only. Base is rgb(21,21,21); surfaces are translucent so the `.glass`
+   backdrop blur reads as depth over the app background. Every design token in
+   theme.ts maps to one of these vars. */
 :root {
   --bg: #101011;
   --bg-alt: #131315;
@@ -41,46 +39,10 @@
   --home-hero:
     radial-gradient(90vw 46vh at 50% -18%, rgba(150, 155, 170, 0.08), transparent 58%),
     #060607;
+  --home-card-shadow:
+    0 24px 60px -24px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --ph1: #1b1b20;
   --ph2: #161619;
-}
-:root[data-theme='light'] {
-  --bg: #eaeaec;
-  --bg-alt: #e6e6e9;
-  --bg-editor: #e4e4e7;
-  --bg-bar: rgba(246, 246, 248, 0.72);
-  --panel: rgba(244, 244, 247, 0.72);
-  --banner: rgba(238, 238, 241, 0.72);
-  --card: rgba(255, 255, 255, 0.6);
-  --raised: rgba(255, 255, 255, 0.72);
-  --control: rgba(20, 20, 22, 0.05);
-  --chip: rgba(20, 20, 22, 0.07);
-  --b6: rgba(20, 20, 22, 0.08);
-  --b7: rgba(20, 20, 22, 0.1);
-  --b8: rgba(20, 20, 22, 0.12);
-  --b9: rgba(20, 20, 22, 0.14);
-  --b10: rgba(20, 20, 22, 0.16);
-  --text: #1b1b1e;
-  --text-soft: #26262a;
-  --text-bright: #111114;
-  --text-mid: #333338;
-  --text-dim: #55555c;
-  --text-faint: #6a6a72;
-  --text-ghost: #86868e;
-  --text-mono: #9a9aa1;
-  --hover: rgba(20, 20, 22, 0.06);
-  --hover-strong: rgba(20, 20, 22, 0.1);
-  --hover-border: rgba(20, 20, 22, 0.18);
-  --scroll-thumb: rgba(20, 20, 22, 0.22);
-  --app-bg:
-    radial-gradient(60vw 55vh at 15% 0%, rgba(47, 107, 255, 0.07), transparent 60%),
-    radial-gradient(55vw 50vh at 100% 100%, rgba(255, 138, 76, 0.06), transparent 60%),
-    #dcdce0;
-  --home-hero:
-    radial-gradient(90vw 46vh at 50% -18%, rgba(0, 0, 0, 0.05), transparent 58%),
-    #f1f1f3;
-  --ph1: #d7d7dd;
-  --ph2: #e3e3e8;
 }
 
 /* Frosted-glass surface: translucent bg (from the token) + blurred backdrop. */

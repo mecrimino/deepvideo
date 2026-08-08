@@ -1,5 +1,5 @@
 /**
- * User settings persistence — channels/brand, credits, and any future
+ * User settings persistence — channels/brand and any future
  * client-side state that must survive a browser-data wipe. One JSON file on
  * disk (projects/settings.json); the frontend mirrors it in localStorage for
  * instant loads and pushes changes here fire-and-forget.

@@ -1,7 +1,6 @@
 import { Clapperboard, Info, Loader2, PanelRight, Share2 } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { GradientLogo } from '../../components/GradientLogo';
-import { ThemeToggle } from '../../components/ThemeToggle';
 import { toolIcons } from '../../data/tools';
 import { useAppStore } from '../../stores/useAppStore';
 import { useEditorStore } from '../../stores/useEditorStore';
@@ -122,7 +121,6 @@ export function TopBar() {
         >
           <Share2 size={16} />
         </button>
-        <ThemeToggle />
         {runId && (filling || hasGap) && (
           <button
             className="hv-blue"
@@ -211,7 +209,7 @@ export function TopBar() {
         )}
         <button
           onClick={toggleChat}
-          title="Toggle Deep Video Agent panel"
+          title="Toggle Agent v1 panel"
           className={showChat ? undefined : 'hv-rail'}
           style={{
             width: 32,

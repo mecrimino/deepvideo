@@ -140,19 +140,6 @@ export function ModelModal() {
                         </div>
                       </div>
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        color: colors.textMid,
-                        background: colors.chip,
-                        padding: '3px 9px',
-                        borderRadius: 999,
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {m.credits}
-                    </div>
                   </div>
                   {selected && (
                     <div
@@ -234,17 +221,6 @@ export function ModelModal() {
               }}
             >
               <div style={{ fontSize: 17, fontWeight: 700 }}>{sel.name}</div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: colors.textMid,
-                  background: colors.chip,
-                  padding: '3px 9px',
-                  borderRadius: 999,
-                }}
-              >
-                {sel.credits}
-              </div>
             </div>
             <div
               style={{

@@ -1,14 +1,13 @@
 /**
- * Right-hand "Deep Video Agent" chat column — full window height. Matches the
+ * Right-hand "Agent v1" chat column — full window height. Matches the
  * reference agent UI:
  *  - "New chat" header with history/new-chat control
  *  - welcome block + suggestion cards anchored above the composer
  *  - clip MENTION CHIPS in the composer (thumbnail · label · #index · ×),
- *    added from the timeline's "Add to Deep Video Agent" pill or Ctrl+L
+ *    added from the timeline's "Add to Agent v1" pill or Ctrl+L
  *  - Agent chip + a real EFFORT picker (Fast = quick library-only edits,
- *    Smart = deeper work incl. stock downloads; Smart costs 1 credit)
+ *    Smart = deeper work incl. stock downloads)
  *  - send turns into a STOP button while the agent thinks (aborts the request)
- *  - "Total Credits Used" strip tracking real session spend
  * Messages go to POST /api/agent/chat with the current timeline; returned
  * timelines are applied to the editor (undoable).
  */
@@ -16,13 +15,12 @@
 import { ArrowUp, Bot, ChevronDown, Loader2, Plus, Repeat, Sparkles, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { AgentMention } from '@deep-vision/shared';
-import { spendCredits } from '../../utils/credits';
 import { agentChat } from '../../services/agent';
 import { useEditorStore, type ChatMention } from '../../stores/useEditorStore';
 import { colors, gradients } from '../../styles/theme';
 
 const SUGGESTIONS = [
-  'Explain what Deep Video Agent can do, and how I can use you most effectively.',
+  'Explain what Agent v1 can do, and how I can use you most effectively.',
   'Regenerate the clips from 0:00 to 0:30 with fresh footage',
   'Find a better alternative for clip 1',
 ];
@@ -32,8 +30,6 @@ const BACKEND_LABEL: Record<string, string> = {
   ollama: 'Ollama',
   commands: 'command mode',
 };
-
-const SMART_COST = 1; // credits per Smart message; Fast is free
 
 interface Message {
   role: 'user' | 'agent';
@@ -131,7 +127,6 @@ export function AgentChat() {
   const [backend, setBackend] = useState<string | null>(null);
   const [effort, setEffort] = useState<'fast' | 'smart'>('smart');
   const [effortOpen, setEffortOpen] = useState(false);
-  const [creditsUsed, setCreditsUsed] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -170,10 +165,6 @@ export function AgentChat() {
       );
       if (res.timeline) applyTimeline(res.timeline);
       if (res.backend) setBackend(res.backend);
-      if (effort === 'smart') {
-        spendCredits(SMART_COST);
-        setCreditsUsed((c) => c + SMART_COST);
-      }
       setMessages((m) => [...m, { role: 'agent', text: res.reply, actions: res.actions }]);
     } catch (err) {
       const aborted = err instanceof DOMException && err.name === 'AbortError';
@@ -276,10 +267,7 @@ export function AgentChat() {
         <span style={{ fontSize: 12.5, fontWeight: 600, color: colors.textSoft }}>New chat</span>
         {messages.length > 0 && (
           <button
-            onClick={() => {
-              setMessages([]);
-              setCreditsUsed(0);
-            }}
+            onClick={() => setMessages([])}
             className="hv-rail"
             style={iconBtn}
             title="New chat"
@@ -306,7 +294,7 @@ export function AgentChat() {
         {messages.length === 0 && (
           <>
             <div style={{ textAlign: 'center', marginBottom: 6 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Deep Video Agent</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Agent v1</div>
               <div
                 style={{
                   fontSize: 11.5,
@@ -382,7 +370,7 @@ export function AgentChat() {
                     display: 'inline-block',
                   }}
                 />
-                <span style={{ fontSize: 11, color: colors.textFaint }}>Deep Video Agent</span>
+                <span style={{ fontSize: 11, color: colors.textFaint }}>Agent v1</span>
               </div>
               <div style={{ fontSize: 13, color: colors.textMid, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                 {m.text}
@@ -412,19 +400,16 @@ export function AgentChat() {
         )}
       </div>
 
-      {/* credits strip */}
-      {(creditsUsed > 0 || messages.length > 0) && (
+      {/* beta strip */}
+      {messages.length > 0 && (
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             padding: '5px 16px',
-            fontSize: 10.5,
-            color: colors.textGhost,
           }}
         >
-          <span>Total Credits Used&nbsp;&nbsp;{creditsUsed.toFixed(3)}</span>
           <span
             style={{
               fontSize: 9.5,
@@ -488,7 +473,7 @@ export function AgentChat() {
 
           <textarea
             rows={2}
-            placeholder="Ask Deep Video Agent to edit your video…"
+            placeholder="Ask Agent v1 to edit your video…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -547,8 +532,8 @@ export function AgentChat() {
                   </div>
                   {(
                     [
-                      { key: 'fast', name: 'Fast', desc: 'Great for everyday edits · saves credits' },
-                      { key: 'smart', name: 'Smart', desc: 'Deeper work on complex edits · costs more credits' },
+                      { key: 'fast', name: 'Fast', desc: 'Great for everyday edits · library only' },
+                      { key: 'smart', name: 'Smart', desc: 'Deeper work · can fetch fresh stock footage' },
                     ] as const
                   ).map((opt) => (
                     <div
@@ -622,7 +607,7 @@ export function AgentChat() {
           </div>
         </div>
         <div style={{ fontSize: 9.5, color: colors.textGhost, textAlign: 'center', marginTop: 5 }}>
-          Deep Video Agent is in early Beta. Results may be unstable.
+          Agent v1 is in early Beta. Results may be unstable.
         </div>
       </div>
     </div>

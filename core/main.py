@@ -317,7 +317,7 @@ async def get_render(job_id: str) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# agent chat (editor's Deep Video Agent)
+# agent chat (editor's Agent v1)
 # --------------------------------------------------------------------------- #
 @app.post("/agent/chat")
 async def do_agent_chat(body: AgentChatBody) -> dict:

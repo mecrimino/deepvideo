@@ -13,9 +13,7 @@ import type {
   PlanMessage,
 } from '@deep-vision/shared';
 import type { Screen } from '../router';
-import { models } from '../data/models';
 import { sampleScripts } from '../data/sample-scripts';
-import { estimateCostCredits, estimateLengthSec, spendCredits } from '../utils/credits';
 import { cancelRun, getRun, listRuns, startRun } from '../services/pipelineRun';
 import { planConversation } from '../services/director';
 import { loadProject, saveProject } from '../services/project';
@@ -74,7 +72,7 @@ interface AppState {
   showPlus: boolean;
   /** Editor: floating settings card visibility (closed by default). */
   showSettings: boolean;
-  /** Editor: Deep Video Agent chat column visibility. */
+  /** Editor: Agent v1 chat column visibility. */
   showChat: boolean;
 
   /** The pipeline run currently shown on the processing screen. */
@@ -164,7 +162,7 @@ interface LaunchOpts {
  * (approve) and the Director-plan "Generate" hand-off (generateFromPlan).
  */
 function launchRun(set: SetFn, get: GetFn, opts: LaunchOpts): void {
-  const { script, audioPath, audioDurationSec, model, skipExpand, title, modelIdx } = opts;
+  const { script, audioPath, model, skipExpand, title } = opts;
   // No connected channel → no niche → we can't pick footage. Block the run.
   const channel = getActiveChannel();
   if (!channel?.niche?.trim()) {
@@ -210,12 +208,6 @@ function launchRun(set: SetFn, get: GetFn, opts: LaunchOpts): void {
           blockedTemplates: brand.blockedTemplates,
         },
       });
-      spendCredits(
-        estimateCostCredits(
-          models[modelIdx].rateCreditsPerMin,
-          estimateLengthSec({ script, audioDurationSec }),
-        ),
-      );
       set({ run, gen: { runId: run.id, title, status: 'running', stage: run.stage } });
       pollRun(set, get, run.id, title);
     } catch (err) {
@@ -277,7 +269,7 @@ function pollRun(set: SetFn, get: GetFn, runId: string, title: string): void {
 /** One Director planning turn: send the transcript, fold in the reply + plan. */
 async function directorTurn(set: SetFn, get: GetFn): Promise<void> {
   try {
-    // One production model — the Deep Video Agent.
+    // One production model — the Agent v1.
     const res = await planConversation({ messages: get().planMessages, model: 'agent' });
     set({
       planMessages: [...get().planMessages, { role: 'assistant', content: res.reply }],

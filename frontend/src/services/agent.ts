@@ -1,4 +1,4 @@
-/** Client for the Deep Video Agent chat endpoint (abortable via signal). */
+/** Client for the Agent v1 chat endpoint (abortable via signal). */
 
 import type { AgentChatRequest, AgentChatResponse, ApiError } from '@deep-vision/shared';
 import { ApiRequestError } from '../utils/fetchJson';

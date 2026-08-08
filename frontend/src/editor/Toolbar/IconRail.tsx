@@ -1,6 +1,6 @@
 /**
  * Narrow icon rail on the editor's far left. Toggles the media library,
- * captions panel, animation settings card, and the Deep Video Agent chat.
+ * captions panel, animation settings card, and the Agent v1 chat.
  */
 
 import { Film, Music, Sparkles, SlidersHorizontal, Type, WandSparkles, X } from 'lucide-react';
@@ -98,7 +98,7 @@ export function IconRail() {
       >
         <SlidersHorizontal size={17} />
       </button>
-      <button onClick={toggleChat} className="hv-rail" style={base} title="Deep Video Agent">
+      <button onClick={toggleChat} className="hv-rail" style={base} title="Agent v1">
         <WandSparkles size={17} />
       </button>
     </div>

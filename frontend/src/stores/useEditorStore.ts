@@ -126,7 +126,7 @@ function recomputeDuration(t: Timeline): void {
   t.durationSec = end;
 }
 
-/** A clip the user attached to the agent chat ("Add to Deep Video Agent"). */
+/** A clip the user attached to the agent chat ("Add to Agent v1"). */
 export interface ChatMention {
   clipId: string;
   /** 1-based index on the video track (what the agent calls "clip N"). */

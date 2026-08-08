@@ -1,7 +1,7 @@
 /**
  * The full-screen editor. Layout matches the reference: below the top bar the
  * screen splits into a left column (icon rail / panels / preview, then the
- * transport + timeline strip) and a FULL-HEIGHT Deep Video Agent column on
+ * transport + timeline strip) and a FULL-HEIGHT Agent v1 column on
  * the right that runs from the top bar to the bottom of the window. The
  * agent panel is toggled only from the top bar's panel button.
  * Owns global keyboard shortcuts (space, S, Delete, Ctrl+Z/Y) and guarantees

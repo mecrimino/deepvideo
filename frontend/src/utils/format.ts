@@ -21,3 +21,14 @@ export function formatRulerLabel(totalSec: number): string {
   const s = Math.floor(totalSec % 60);
   return `${m}m ${s}s`;
 }
+
+/** Average narration pace (matches the model package's estimator). */
+const WORDS_PER_SEC = 2.6;
+
+/** Estimated video length in seconds from a script or attached audio. */
+export function estimateLengthSec(input: { script?: string; audioDurationSec?: number }): number {
+  if (input.audioDurationSec && input.audioDurationSec > 0) return input.audioDurationSec;
+  const words = (input.script ?? '').split(/\s+/).filter(Boolean).length;
+  // Short idea prompts get expanded to a ~150-word script by the model.
+  return Math.max(words, 150) / WORDS_PER_SEC;
+}

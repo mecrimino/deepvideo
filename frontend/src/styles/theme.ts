@@ -3,10 +3,9 @@
  * the recurring values and keep one-off values inline, mirroring the design.
  */
 
-// Values are CSS variables (defined in index.css for both the dark default and
-// the [data-theme="light"] palette) so the whole app — every component reads
-// these tokens inline — re-skins on a theme switch with no per-component edits.
-// The dark base is rgb(21,21,21) with translucent, blurred "glass" surfaces.
+// Values are CSS variables (the dark-only palette in index.css) so every
+// component reads these tokens inline. Dark base is rgb(21,21,21) with
+// translucent, blurred "glass" surfaces.
 export const colors = {
   // surfaces
   bg: 'var(--bg)',

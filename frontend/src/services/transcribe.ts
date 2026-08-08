@@ -11,7 +11,13 @@ export function transcribe(req: TranscribeRequest): Promise<TranscribeResponse> 
 export async function uploadAudio(file: File): Promise<UploadAudioResponse> {
   const form = new FormData();
   form.append('file', file, file.name);
-  const res = await fetch('/api/audio/upload', { method: 'POST', body: form });
+  let res: Response;
+  try {
+    res = await fetch('/api/audio/upload', { method: 'POST', body: form });
+  } catch {
+    // fetch() rejects (not an HTTP error) when the gateway is unreachable.
+    throw new Error('Can’t reach the server — start the backend: npm run dev:backend');
+  }
   const json = (await res.json()) as UploadAudioResponse | { error: string };
   if (!res.ok) throw new Error('error' in json ? json.error : `upload failed (${res.status})`);
   return json as UploadAudioResponse;

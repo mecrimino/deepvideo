@@ -1,5 +1,5 @@
 """
-Agent chat (the editor's "Deep Video Agent") — conversational timeline EDITING.
+Agent chat (the editor's "Agent v1") — conversational timeline EDITING.
 
 With an LLM key the agent is a **tool-caller**: it sees the real clips (and any
 clips the user @-mentioned), decides on concrete edits, and emits a strict JSON
@@ -330,7 +330,7 @@ async def _apply_plan(t: Timeline, ops: list, project_id: str) -> tuple[list[str
     return actions, notes
 
 
-_SYSTEM = """You are Deep Video Agent, an expert video editor embedded in a timeline editor.
+_SYSTEM = """You are Agent v1, an expert video editor embedded in a timeline editor.
 You edit the user's timeline by returning a STRICT JSON object — no prose, no code fences:
 
   {"reply": "<one short sentence to the user>", "ops": [ <edit ops> ]}

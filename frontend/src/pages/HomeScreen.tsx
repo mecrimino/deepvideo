@@ -18,7 +18,6 @@ import type { ProjectSummary } from '@deep-vision/shared';
 import { Avatar } from '../components/Avatar';
 import { GradientLogo } from '../components/GradientLogo';
 import { ModelModal } from '../components/ModelModal';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { models } from '../data/models';
 import { sampleScripts } from '../data/sample-scripts';
 import {
@@ -31,7 +30,6 @@ import {
   subscribeChannel,
 } from '../utils/channel';
 import { fmtSubscribers, resolveChannel } from '../services/youtube';
-import { getCredits, subscribeCredits } from '../utils/credits';
 import { formatDuration } from '../utils/format';
 import { deleteProject, listProjects, loadProject } from '../services/project';
 import { uploadAudio } from '../services/transcribe';
@@ -100,7 +98,6 @@ export function HomeScreen() {
   const audioInputRef = useRef<HTMLInputElement>(null);
 
   // Real, live local data.
-  const credits = useSyncExternalStore(subscribeCredits, getCredits);
   const chState = useSyncExternalStore(subscribeChannel, getChannelsState);
   const activeChannel = getActiveChannel();
   const [editingChannel, setEditingChannel] = useState(false);
@@ -218,34 +215,6 @@ export function HomeScreen() {
           Deep Video
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            title="Local credits balance — generations deduct their estimated cost"
-            className="glass"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: colors.raised,
-              border: `1px solid ${colors.border9}`,
-              padding: '7px 13px',
-              borderRadius: 999,
-              fontSize: 13,
-              color: colors.textMid,
-              fontWeight: 500,
-            }}
-          >
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: colors.gold,
-                display: 'inline-block',
-              }}
-            />
-            {credits.toLocaleString()} credits
-          </div>
-          <ThemeToggle />
           <Avatar size={34} />
         </div>
       </div>
@@ -287,7 +256,7 @@ export function HomeScreen() {
             border: `1px solid ${colors.border8}`,
             borderRadius: 20,
             padding: '18px 18px 13px',
-            boxShadow: '0 24px 60px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.05)',
+            boxShadow: 'var(--home-card-shadow)',
           }}
         >
           <textarea

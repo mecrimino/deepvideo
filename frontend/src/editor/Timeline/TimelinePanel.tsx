@@ -131,7 +131,7 @@ function LaneHead({ row }: { row: Row }) {
 }
 
 /**
- * "Ctrl L · Add to Deep Video Agent" pill in a FIXED spot at the timeline's
+ * "Ctrl L · Add to Agent v1" pill in a FIXED spot at the timeline's
  * bottom-right (reference layout). Shown while a video clip is selected;
  * clicking attaches the clip to the agent composer as a mention chip.
  */
@@ -189,7 +189,7 @@ function AddToAgentPill() {
       >
         ctrl L
       </span>
-      Add to Deep Video Agent
+      Add to Agent v1
     </button>
   );
 }
@@ -322,7 +322,7 @@ export function TimelinePanel() {
           }}
         >
           <Sparkles size={14} />
-          Ask Deep Video Agent
+          Ask Agent v1
         </button>
       )}
     </div>

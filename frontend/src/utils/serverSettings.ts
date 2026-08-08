@@ -1,7 +1,7 @@
 /**
  * Server-side settings mirror. localStorage stays the instant-load cache, but
  * every change is ALSO pushed to the gateway (projects/settings.json on disk),
- * so channels/brand/credits survive a browser-data wipe. All calls are silent
+ * so channels/brand survive a browser-data wipe. All calls are silent
  * best-effort — with the server down the app still works off localStorage.
  */
 
