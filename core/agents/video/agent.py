@@ -32,7 +32,7 @@ from core.agents.video.scorer import ShotScorer
 from core.agents.video.shot_detector import ShotDetector
 from core.agents.video.trimmer import ClipTrimmer
 from core.agents.video.vision import ShotVision
-from core.providers.search.stock import StockResult
+from core.providers.search.stock import StockResult, is_sixteen_nine
 from core.config import get_settings
 from core.providers.storage import rel
 from core.schemas.edl import Beat, ClipAsset
@@ -203,6 +203,14 @@ class VideoSearchAgent(BaseAgent[Beat, list[Candidate]]):
             return None
         video_path = clip.local_path if clip.local_path else c.local_path
         info = await probe(video_path)
+        # Last line of defence: the exporter pads non-16:9 footage with black
+        # bars, so refuse the real file if its frame isn't 16:9 even when the
+        # provider's metadata claimed otherwise.
+        if not is_sixteen_nine(info.width, info.height):
+            log.info(
+                "rejecting %s — %dx%d is not 16:9", video_path, info.width, info.height
+            )
+            return None
         clip_id = new_id("clip_")
         # Poster frame so the editor timeline shows a real thumbnail, not a
         # blank block. Grab it mid-clip; failure just leaves thumbPath unset.

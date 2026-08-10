@@ -32,7 +32,7 @@ from core.agents.image.providers import ImageProviders
 from core.agents.image.queries import QueryGenerator
 from core.agents.image.ranking import RankingEngine
 from core.agents.image.scorer import VisionScorer
-from core.providers.search.stock import StockResult
+from core.providers.search.stock import StockResult, is_sixteen_nine
 from core.providers.storage import rel
 from core.schemas.edl import Beat, ClipAsset
 from core.utils.ids import new_id
@@ -195,9 +195,23 @@ class ImageSearchAgent(BaseAgent[Beat, list[Candidate]]):
         if full is None or not Path(full).exists():
             return None
         dur = beat.range.duration or 4.0
+        # Measure the real file — provider metadata is often the preview's size.
+        w, h = c.width or 0, c.height or 0
+        try:
+            from PIL import Image as _PILImage
+
+            with _PILImage.open(full) as im:
+                w, h = im.size
+        except Exception:
+            pass
+        # A stock still that isn't 16:9 would be letterboxed by the exporter.
+        # Generated images are ours (already 16:9), so they skip the gate.
+        if not c.generated and not is_sixteen_nine(w, h):
+            log.info("rejecting image %s — %dx%d is not 16:9", full, w, h)
+            return None
         asset = ClipAsset(
             id=new_id("clip_"), path=rel(full), durationSec=dur,
-            width=c.width or 1920, height=c.height or 1080, tags=c.tags,
+            width=w or 1920, height=h or 1080, tags=c.tags,
             thumbPath=rel(full), source="stock",
             license="AI-generated" if c.generated else c.license,
         )

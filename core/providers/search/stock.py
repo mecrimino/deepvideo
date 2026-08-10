@@ -79,7 +79,10 @@ class StockProvider:
             merged += [a, b]
         longer = pexels if len(pexels) > len(pixabay) else pixabay
         merged += longer[min(len(pexels), len(pixabay)):]
-        return _dedupe(merged)
+        # The project frame is 16:9 and the exporter pads anything else with
+        # black bars, so only 16:9 media may leave this provider (Pexels is also
+        # asked for landscape up front; Pixabay has no such filter).
+        return _sixteen_nine_only(_dedupe(merged))
 
     # ------------------------------------------------------------------ #
     # Pexels
@@ -94,8 +97,8 @@ class StockProvider:
             url,
             pool=self._pexels,
             auth_prefix="",  # Pexels uses a raw key, no "Bearer "
-            params={"query": query, "per_page": n},
-            cache_key=f"pexels:{kind}:{query}:{n}",
+            params={"query": query, "per_page": n, "orientation": "landscape"},
+            cache_key=f"pexels:{kind}:{query}:{n}:landscape",
         )
         out: list[StockResult] = []
         if kind == "video":
@@ -184,6 +187,36 @@ class StockProvider:
                     )
                 )
         return out
+
+
+TARGET_AR = 16 / 9  # the project frame
+AR_TOLERANCE = 0.06  # accepts ~1.72–1.84; rejects portrait, square, 4:3 and DCI 1.90
+
+
+def is_sixteen_nine(width: int, height: int) -> bool:
+    """True only for a real 16:9 frame. Unknown dimensions are NOT trusted —
+    the exporter pads anything else with black bars, so a maybe is a no."""
+    if not width or not height or width <= 0 or height <= 0:
+        return False
+    return abs(width / height - TARGET_AR) <= AR_TOLERANCE
+
+
+def _aspect(r: StockResult) -> float:
+    return r.width / r.height if r.width > 0 and r.height > 0 else 0.0
+
+
+def _sixteen_nine_only(results: list[StockResult]) -> list[StockResult]:
+    """Keep ONLY 16:9 media, closest match first.
+
+    Deliberately has no "nothing matched, take anything" fallback: returning a
+    portrait clip letterboxes it into the frame, which looks broken. An empty
+    pool makes the pipeline generate an image for that beat instead.
+    """
+    keep = [r for r in results if is_sixteen_nine(r.width, r.height)]
+    dropped = len(results) - len(keep)
+    if dropped:
+        log.info("aspect filter dropped %d/%d non-16:9 results", dropped, len(results))
+    return sorted(keep, key=lambda r: abs(_aspect(r) - TARGET_AR))
 
 
 def _dedupe(results: list[StockResult]) -> list[StockResult]:
