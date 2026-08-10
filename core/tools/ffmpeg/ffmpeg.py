@@ -108,15 +108,29 @@ async def extract_audio(src: str | Path, dest: str | Path, sample_rate: int = 16
 
 
 async def trim_clip(
-    src: str | Path, dest: str | Path, start: float, end: float, *, reencode: bool = True
+    src: str | Path,
+    dest: str | Path,
+    start: float,
+    end: float,
+    *,
+    reencode: bool = True,
+    mute: bool = False,
 ) -> Optional[Path]:
-    """Cut ``[start, end)`` out of ``src`` into ``dest`` (Ch13.15 clip trimming)."""
+    """Cut ``[start, end)`` out of ``src`` into ``dest`` (Ch13.15 clip trimming).
+
+    ``mute`` drops the audio stream entirely — B-roll is picture only, and its
+    original ambience would fight the narration.
+    """
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dur = max(0.1, end - start)
     args = [_FFMPEG, "-y", "-ss", str(max(0.0, start)), "-i", str(src), "-t", str(dur)]
+    if mute:
+        args.append("-an")
     if reencode:
-        args += ["-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac"]
+        args += ["-c:v", "libx264", "-preset", "veryfast"]
+        if not mute:
+            args += ["-c:a", "aac"]
     else:
         args += ["-c", "copy"]
     args.append(str(dest))

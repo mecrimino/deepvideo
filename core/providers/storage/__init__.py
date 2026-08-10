@@ -42,13 +42,18 @@ def load_catalog() -> list[dict]:
 
 
 def register_asset(asset) -> dict:
-    """Add/replace a :class:`ClipAsset` in the shared catalog (idempotent by path)."""
+    """Add/replace a :class:`ClipAsset` in the shared catalog (idempotent by id).
+
+    Keyed by **id**, not path: two beats can legitimately trim the same source
+    file, and replacing the entry by path used to retire the first beat's id —
+    orphaning a clip that already referenced it, which then rendered black.
+    """
     item = asset.model_dump() if hasattr(asset, "model_dump") else dict(asset)
     with _CATALOG_LOCK:
         catalog = load_catalog()
-        by_path = {c.get("path"): i for i, c in enumerate(catalog)}
-        if item.get("path") in by_path:
-            catalog[by_path[item["path"]]] = item
+        by_id = {c.get("id"): i for i, c in enumerate(catalog)}
+        if item.get("id") in by_id:
+            catalog[by_id[item["id"]]] = item
         else:
             catalog.append(item)
         try:

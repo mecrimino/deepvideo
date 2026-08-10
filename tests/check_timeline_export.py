@@ -110,7 +110,7 @@ def main() -> None:
     print(f"ok — {out} is a real composite (layers, gaps and placed audio all hold)")
 
     check_batched(exporter, media)
-    check_shot_audio(exporter, media)
+    check_broll_silent(exporter, media)
     check_micro_gaps(exporter, media)
 
 
@@ -145,13 +145,13 @@ def check_micro_gaps(exporter: ExporterAgent, media: dict[str, Path]) -> None:
     print(f"ok — {out} closes ms-scale gaps but keeps real black beats")
 
 
-def check_shot_audio(exporter: ExporterAgent, media: dict[str, Path]) -> None:
+def check_broll_silent(exporter: ExporterAgent, media: dict[str, Path]) -> None:
     """
-    A composed preset shot (a card, a title…) sits on a VIDEO/overlay lane but
-    bakes its sfx into its own file. That audio must still reach the export —
-    only for shots (marked by shotSpec), so ordinary B-roll stays muted.
+    Stock B-roll ships with its own ambience, which would fight the narration.
+    Visual lanes are picture only: even when a clip's FILE has a loud audio
+    stream, none of it may reach the export.
     """
-    with_sound = Path(WORK) / "shot_with_sfx.mp4"
+    with_sound = Path(WORK) / "broll_with_sfx.mp4"
     if not with_sound.exists():
         subprocess.run(
             ["ffmpeg", "-v", "error", "-y",
@@ -161,25 +161,31 @@ def check_shot_audio(exporter: ExporterAgent, media: dict[str, Path]) -> None:
             check=True,
         )
 
-    shot = {
-        "id": "shot", "shotSpec": {"presetId": "card_pop", "values": {}},
-        "source": {"kind": "asset", "assetId": "shot", "inSec": 0, "outSec": 3},
+    noisy = {
+        "id": "noisy",
+        "source": {"kind": "asset", "assetId": "noisy", "inSec": 0, "outSec": 3},
         "range": {"startSec": 4, "endSec": 7},
     }
     timeline = Timeline.model_validate({
-        "id": "tl_shot", "fps": 30, "width": 320, "height": 180, "durationSec": 10,
+        "id": "tl_broll", "fps": 30, "width": 320, "height": 180, "durationSec": 10,
         "tracks": [
-            {"id": "ov", "kind": "overlay", "name": "L2", "clips": [shot]},
+            {"id": "ov", "kind": "overlay", "name": "L2", "clips": [noisy]},
             {"id": "vid", "kind": "video", "name": "V", "clips": [clip("red", 0, 10)]},
         ],
         "captions": [],
     })
-    exporter._resolve_asset = lambda c: with_sound if c.id == "shot" else media["red"]  # type: ignore[method-assign]
+    exporter._resolve_asset = lambda c: with_sound if c.id == "noisy" else media["red"]  # type: ignore[method-assign]
 
-    out = asyncio.run(exporter.render(timeline, job_id="check_export_shotaudio", width=320, height=180))
-    assert loudness(out, 5, 1) > -30, "the shot's baked sfx should be audible in its window"
-    assert loudness(out, 1, 1) < -55, "audio before the shot should be silent"
-    print(f"ok — {out} carries a composed shot's baked sfx into the render")
+    out = asyncio.run(exporter.render(timeline, job_id="check_export_brollsilent", width=320, height=180))
+    # No audio stream at all is the ideal outcome; a silent one is fine too.
+    info = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
+         "stream=codec_type", "-of", "csv=p=0", str(out)],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if info:
+        assert loudness(out, 5, 1) < -55, "B-roll ambience must not reach the export"
+    print(f"ok — {out} keeps stock B-roll ambience out of the render")
 
 
 def check_batched(exporter: ExporterAgent, media: dict[str, Path]) -> None:

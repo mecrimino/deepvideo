@@ -20,7 +20,6 @@ from core.config import get_settings
 from core.providers.storage import get_asset, rel
 from core.schemas.edl import Timeline, TimelineClip
 from core.tools.ffmpeg.ffmpeg import _run  # low-level runner (async)
-from core.tools.ffmpeg.ffmpeg import probe as ff_probe
 from core.utils.logging import get_logger
 
 log = get_logger("exporter")
@@ -330,20 +329,8 @@ class ExporterAgent:
             if (path := self._resolve_asset(clip)) is not None
         ]
 
-        # Composed preset shots (a card, a title…) live on the VIDEO/overlay
-        # lanes but bake their own sfx/music into the file. That audio would be
-        # dropped with the rest of the visual-lane audio, so pull it back in —
-        # only for shots (identified by shotSpec), so stock B-roll ambience on
-        # ordinary clips stays muted, and only when the file actually has sound.
-        for track in timeline.tracks:
-            if track.kind not in ("video", "overlay") or track.muted:
-                continue
-            for clip in track.clips:
-                if not getattr(clip, "shotSpec", None):
-                    continue
-                path = self._resolve_asset(clip)
-                if path is not None and (await ff_probe(path)).hasAudio:
-                    placed.append((clip, path))
+        # Visual lanes never contribute sound: stock B-roll ships with ambience
+        # that fights the narration, so only audio lanes are mixed in.
 
         if placed:
             return await self._mix_audio(video, audio_abs, placed, out)

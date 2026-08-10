@@ -46,7 +46,6 @@ function ClipLayer({ clip, active }: { clip: NonNullable<ReturnType<typeof clipA
   const playheadSec = useEditorStore((s) => s.playheadSec);
   const playing = useEditorStore((s) => s.playing);
   const speed = useEditorStore((s) => s.speed);
-  const muted = useEditorStore((s) => s.muted);
   const assets = useEditorStore((s) => s.assets);
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -58,7 +57,10 @@ function ClipLayer({ clip, active }: { clip: NonNullable<ReturnType<typeof clipA
         : clip.source.inSec // idle buffer: pre-seek to the in-point, ready to go
       : 0;
 
-  useMediaSync(ref, wantSec, active && playing, speed, muted || !active);
+  // Always silent: visual lanes carry picture only. Stock B-roll ships with
+  // ambience that would fight the narration, and the exporter drops it too, so
+  // the preview must match what you'll actually render.
+  useMediaSync(ref, wantSec, active && playing, speed, true);
 
   if (clip.source.kind !== 'asset' || !asset) return null;
 

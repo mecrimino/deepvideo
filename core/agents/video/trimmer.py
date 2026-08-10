@@ -30,4 +30,6 @@ class ClipTrimmer:
 
     async def trim(self, video_path: str | Path, start: float, end: float) -> Optional[Path]:
         dest = Path(video_path).with_name(f"{Path(video_path).stem}.{int(start*10)}-{int(end*10)}.mp4")
-        return await trim_clip(video_path, dest, start, end, reencode=True)
+        # B-roll is picture only — strip the source's ambience so it can never
+        # bleed into the preview or the render alongside the narration.
+        return await trim_clip(video_path, dest, start, end, reencode=True, mute=True)
