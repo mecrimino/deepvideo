@@ -5,6 +5,7 @@ import {
   ChevronDown,
   CircleAlert,
   FileText,
+  Film,
   Loader2,
   Mic,
   Play,
@@ -32,6 +33,7 @@ import {
 import { fmtSubscribers, resolveChannel } from '../services/youtube';
 import { formatDuration } from '../utils/format';
 import { deleteProject, listProjects, loadProject } from '../services/project';
+import { uploadMedia } from '../services/clips';
 import { uploadAudio } from '../services/transcribe';
 import { useAppStore } from '../stores/useAppStore';
 import { fileUrl, useEditorStore } from '../stores/useEditorStore';
@@ -96,6 +98,7 @@ export function HomeScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Real, live local data.
   const chState = useSyncExternalStore(subscribeChannel, getChannelsState);
@@ -154,6 +157,22 @@ export function HomeScreen() {
     }
   };
 
+  /** Upload a video the user already has and open it as a fresh project. */
+  const pickVideo = async (file: File) => {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const { asset } = await uploadMedia(file);
+      const title = file.name.replace(/\.[^.]+$/, '');
+      useEditorStore.getState().startProjectFromAsset(asset, title);
+      go('editor');
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const openProject = async (id: string) => {
     try {
       const { project } = await loadProject(id);
@@ -186,6 +205,18 @@ export function HomeScreen() {
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void pickAudio(file);
+          e.target.value = '';
+        }}
+      />
+
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*,.mp4,.mov,.webm,.mkv,.m4v"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void pickVideo(file);
           e.target.value = '';
         }}
       />
@@ -396,6 +427,27 @@ export function HomeScreen() {
                     {audio && (
                       <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: '#6fd08e' }} />
                     )}
+                  </div>
+                  <div
+                    className="hv-dark"
+                    onClick={() => {
+                      togglePlus();
+                      videoInputRef.current?.click();
+                    }}
+                    title="Edit a video you already have — opens it straight in the editor"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 11,
+                      padding: '10px 11px',
+                      borderRadius: 10,
+                      fontSize: 14,
+                      color: colors.textSoft,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Film size={17} color={colors.textDim} />
+                    Edit my video
                   </div>
                 </div>
               )}
@@ -660,6 +712,43 @@ export function HomeScreen() {
               <ArrowUp size={20} />
             </button>
           </div>
+        </div>
+
+        {/* second path in: bring your own footage */}
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <button
+            onClick={() => videoInputRef.current?.click()}
+            disabled={uploading}
+            className="hv-dark"
+            title="Upload a video you already have — it opens as a new project in the editor"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              borderRadius: 999,
+              background: colors.card,
+              border: `1px solid ${colors.border8}`,
+              color: colors.textDim,
+              fontSize: 12.5,
+              cursor: uploading ? 'wait' : 'pointer',
+            }}
+          >
+            {uploading ? (
+              <>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                Uploading…
+              </>
+            ) : (
+              <>
+                <Film size={14} />
+                Already have a video? Edit &amp; caption it
+              </>
+            )}
+          </button>
+          {uploadError && (
+            <div style={{ fontSize: 11.5, color: '#ff9d9d', marginTop: 7 }}>{uploadError}</div>
+          )}
         </div>
 
         {/* recent generations — REAL saved projects */}

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from core.config import get_settings
-from core.agents.exporter.caption_styles import drawtext_clause
+from core.agents.exporter.caption_styles import cue_segments, drawtext_clause
 from core.providers.storage import get_asset, rel
 from core.schemas.edl import Timeline, TimelineClip
 from core.tools.ffmpeg.ffmpeg import _run  # low-level runner (async)
@@ -48,9 +48,9 @@ def _esc_drawtext(text: str) -> str:
     return "\n".join(lines[:6])
 
 
-def _drawtext(text: str, h: int, style: Optional[str] = None) -> str:
+def _drawtext(text: str, h: int, style: Optional[str] = None, opts: Optional[dict] = None) -> str:
     """A leading-comma drawtext clause rendering `text` in the chosen style."""
-    return drawtext_clause(text, h, style, _esc_drawtext)
+    return drawtext_clause(text, h, style, _esc_drawtext, opts)
 
 
 class ExporterAgent:
@@ -172,7 +172,8 @@ class ExporterAgent:
         if len(windows) == 1:
             (w0, w1) = windows[0]
             return await self._render_window(
-                clips, cues, w0, w1 - w0, work / "composite.mp4", w, h, fps, timeline.captionStyle
+                clips, cues, w0, w1 - w0, work / "composite.mp4", w, h, fps,
+                timeline.captionStyle, timeline.captionOptions
             )
 
         segments: list[Path] = []
@@ -184,7 +185,8 @@ class ExporterAgent:
             seg = work / f"win_{i:03d}.mp4"
             segments.append(
                 await self._render_window(
-                    sub, subcues, w0, w1 - w0, seg, w, h, fps, timeline.captionStyle
+                    sub, subcues, w0, w1 - w0, seg, w, h, fps,
+                    timeline.captionStyle, timeline.captionOptions
                 )
             )
         if progress:
@@ -219,6 +221,7 @@ class ExporterAgent:
         h: int,
         fps: int,
         style: Optional[str] = None,
+        opts: Optional[dict] = None,
     ) -> Path:
         """Composite `clips`/`cues` onto a `dur`-second canvas, times relative to w0."""
         args: list[str] = ["-y", "-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:d={dur:.3f}:r={fps}"]
@@ -263,16 +266,21 @@ class ExporterAgent:
             )
             canvas = nxt
 
-        for j, cue in enumerate(cues, start=1):
-            cs, ce = max(0.0, cue.range.startSec - w0), min(dur, cue.range.endSec - w0)
-            if ce <= cs:
-                continue
-            nxt = f"t{j}"
-            chains.append(
-                f"[{canvas}]{_drawtext(cue.text, h, style).lstrip(',')}"
-                f":enable='between(t,{cs:.3f},{ce:.3f})'[{nxt}]"
-            )
-            canvas = nxt
+        # A cue is one drawtext, except in word-by-word styles where it becomes
+        # one per word (live typing / single-word), each enabled for its slice.
+        seg_i = 0
+        for cue in cues:
+            for body, s0, s1 in cue_segments(cue, style, opts):
+                cs, ce = max(0.0, s0 - w0), min(dur, s1 - w0)
+                if ce <= cs or not body.strip():
+                    continue
+                seg_i += 1
+                nxt = f"t{seg_i}"
+                chains.append(
+                    f"[{canvas}]{_drawtext(body, h, style, opts).lstrip(',')}"
+                    f":enable='between(t,{cs:.3f},{ce:.3f})'[{nxt}]"
+                )
+                canvas = nxt
 
         args += [
             "-filter_complex", ";".join(chains),

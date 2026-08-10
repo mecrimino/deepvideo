@@ -135,6 +135,8 @@ export interface CaptionCue {
   id: string;
   text: string;
   range: TimeRange;
+  /** Per-word timings when the transcript had them (drives word-by-word styles). */
+  words?: Word[];
 }
 
 /** The full timeline / EDL for one project. */
@@ -150,10 +152,24 @@ export interface Timeline {
   captions: CaptionCue[];
   /** Burn-in caption style; ids match core/agents/exporter/caption_styles.py. */
   captionStyle?: CaptionStyleId;
+  /** Per-project overrides on top of that style. */
+  captionOptions?: CaptionOptions;
 }
 
 /** Caption burn-in styles offered in the editor. */
-export type CaptionStyleId = 'classic' | 'outline' | 'pop' | 'banner' | 'minimal' | 'top';
+export type CaptionStyleId =
+  | 'classic' | 'outline' | 'pop' | 'banner' | 'minimal' | 'top'
+  | 'live' | 'karaoke';
+
+/** User tweaks layered over the chosen style preset. */
+export interface CaptionOptions {
+  /** Text height as a percentage of the frame (e.g. 5 = 5% of height). */
+  sizePct?: number;
+  /** Hex fill, e.g. "#FFE14D". */
+  color?: string;
+  place?: 'bottom' | 'middle' | 'top';
+  upper?: boolean;
+}
 
 export const CAPTION_STYLES: { id: CaptionStyleId; label: string; hint: string }[] = [
   { id: 'classic', label: 'Classic', hint: 'White on a soft black box' },
@@ -162,6 +178,8 @@ export const CAPTION_STYLES: { id: CaptionStyleId; label: string; hint: string }
   { id: 'banner', label: 'Banner', hint: 'Wide dark bar across the bottom' },
   { id: 'minimal', label: 'Minimal', hint: 'Small white with a soft shadow' },
   { id: 'top', label: 'Top bar', hint: 'Boxed caption at the top' },
+  { id: 'live', label: 'Live typing', hint: 'Words appear as they are spoken' },
+  { id: 'karaoke', label: 'One word', hint: 'One big word at a time, centre screen' },
 ];
 
 /** A saved editor project (timeline + provenance). */

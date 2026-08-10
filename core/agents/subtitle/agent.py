@@ -28,9 +28,11 @@ class SubtitleAgent(BaseAgent[Transcript, list[CaptionCue]]):
         if not words:
             return cues
         buf: list[str] = []
+        wbuf: list = []
         start = words[0].startSec
         for i, w in enumerate(words):
             buf.append(w.text)
+            wbuf.append(w)
             span = w.endSec - start
             is_last = i == len(words) - 1
             ends_sentence = w.text.endswith((".", "!", "?"))
@@ -39,8 +41,10 @@ class SubtitleAgent(BaseAgent[Transcript, list[CaptionCue]]):
                     id=new_id("cap_"),
                     text=" ".join(buf).strip(),
                     range=TimeRange(startSec=round(start, 3), endSec=round(w.endSec, 3)),
+                    words=list(wbuf),
                 ))
                 buf = []
+                wbuf = []
                 if not is_last:
                     start = words[i + 1].startSec
         return cues

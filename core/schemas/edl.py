@@ -128,6 +128,8 @@ class CaptionCue(BaseModel):
     id: str
     text: str
     range: TimeRange
+    #: per-word timings, when the transcript had them — drives word-by-word styles
+    words: list[Word] = Field(default_factory=list)
 
 
 class Timeline(BaseModel):
@@ -141,6 +143,8 @@ class Timeline(BaseModel):
     captions: list[CaptionCue] = Field(default_factory=list)
     #: burn-in caption style id (see core/agents/exporter/caption_styles.py)
     captionStyle: Optional[str] = None
+    #: user overrides layered on that style (sizePct/color/place/upper)
+    captionOptions: Optional[dict] = None
 
 
 class Project(BaseModel):

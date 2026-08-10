@@ -11,6 +11,22 @@ import { useEditorStore } from '../../stores/useEditorStore';
 import { colors, fontMono } from '../../styles/theme';
 import { formatDuration } from '../../utils/format';
 
+/** Preset defaults, kept in step with caption_styles.py. */
+const SIZE_PCT: Record<string, number> = {
+  classic: 4.2, outline: 5, pop: 6.3, banner: 3.8, minimal: 3.3, top: 3.8, live: 4.5, karaoke: 9.1,
+};
+function defaultSizePct(id: string): number {
+  return SIZE_PCT[id] ?? 4.2;
+}
+function defaultColor(id: string): string {
+  return id === 'pop' || id === 'karaoke' ? '#FFE14D' : '#FFFFFF';
+}
+function defaultPlace(id: string): 'top' | 'middle' | 'bottom' {
+  if (id === 'top') return 'top';
+  if (id === 'karaoke') return 'middle';
+  return 'bottom';
+}
+
 /** Miniature of each burn-in style, mirroring caption_styles.py. */
 function captionSwatch(id: string): React.CSSProperties {
   const base: React.CSSProperties = {
@@ -33,6 +49,10 @@ function captionSwatch(id: string): React.CSSProperties {
       return { ...base, fontSize: 8.5, background: 'transparent', textShadow: '1px 1px 2px rgba(0,0,0,.9)' };
     case 'top':
       return { ...base, fontSize: 9, background: 'rgba(0,0,0,.55)' };
+    case 'live':
+      return { ...base, fontSize: 11, background: 'transparent', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' };
+    case 'karaoke':
+      return { ...base, fontSize: 15, color: '#FFE14D', background: 'transparent', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' };
     default: // classic
       return { ...base, background: 'rgba(0,0,0,.55)' };
   }
@@ -49,6 +69,7 @@ export function TextPanel() {
   const deleteCaption = useEditorStore((s) => s.deleteCaption);
   const replaceCaptions = useEditorStore((s) => s.replaceCaptions);
   const setCaptionStyle = useEditorStore((s) => s.setCaptionStyle);
+  const setCaptionOptions = useEditorStore((s) => s.setCaptionOptions);
   const setNotice = useEditorStore((s) => s.setNotice);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -56,6 +77,7 @@ export function TextPanel() {
   const cues = timeline?.captions ?? [];
   const selected = cues.find((c) => c.id === selectedCueId) ?? null;
   const style = timeline?.captionStyle ?? 'classic';
+  const opts = timeline?.captionOptions ?? {};
 
   /**
    * What to caption: the narration bed if there is one, otherwise the longest
@@ -219,6 +241,78 @@ export function TextPanel() {
               </button>
             );
           })}
+        </div>
+
+        {/* customise the chosen style */}
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: colors.textFaint }}>
+            Size
+            <input
+              type="range"
+              min={2}
+              max={18}
+              step={0.5}
+              value={opts.sizePct ?? defaultSizePct(style)}
+              onChange={(e) => setCaptionOptions({ sizePct: Number(e.target.value) })}
+              style={{ flex: 1, accentColor: colors.accent }}
+            />
+            <span style={{ width: 26, textAlign: 'right', color: colors.textDim }}>
+              {(opts.sizePct ?? defaultSizePct(style)).toFixed(1)}
+            </span>
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: colors.textFaint }}>
+            Colour
+            <input
+              type="color"
+              value={opts.color ?? defaultColor(style)}
+              onChange={(e) => setCaptionOptions({ color: e.target.value })}
+              style={{ width: 34, height: 22, background: 'transparent', border: `1px solid ${colors.border8}`, borderRadius: 5, padding: 0, cursor: 'pointer' }}
+            />
+            <span style={{ flex: 1 }} />
+            <button
+              onClick={() => setCaptionOptions({ upper: !(opts.upper ?? false) })}
+              className="hv-dark"
+              title="Force UPPERCASE"
+              style={{
+                fontSize: 10,
+                padding: '3px 8px',
+                borderRadius: 5,
+                background: opts.upper ? 'rgba(12,176,142,.18)' : colors.card,
+                border: `1px solid ${opts.upper ? colors.accent : colors.border8}`,
+                color: opts.upper ? colors.accentHi : colors.textDim,
+                cursor: 'pointer',
+              }}
+            >
+              AA
+            </button>
+          </label>
+
+          <div style={{ display: 'flex', gap: 5 }}>
+            {(['top', 'middle', 'bottom'] as const).map((pl) => {
+              const on = (opts.place ?? defaultPlace(style)) === pl;
+              return (
+                <button
+                  key={pl}
+                  onClick={() => setCaptionOptions({ place: pl })}
+                  className={on ? undefined : 'hv-dark'}
+                  style={{
+                    flex: 1,
+                    fontSize: 10,
+                    padding: '4px 0',
+                    borderRadius: 5,
+                    textTransform: 'capitalize',
+                    background: on ? 'rgba(12,176,142,.18)' : colors.card,
+                    border: `1px solid ${on ? colors.accent : colors.border8}`,
+                    color: on ? colors.accentHi : colors.textDim,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {pl}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

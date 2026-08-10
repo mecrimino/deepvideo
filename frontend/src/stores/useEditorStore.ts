@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import type {
   CaptionCue,
+  CaptionOptions,
   CaptionStyleId,
   ClipAsset,
   PipelineRun,
@@ -189,6 +190,8 @@ interface EditorState {
   /* ---- document lifecycle ---- */
   openTimeline: (t: Timeline, opts?: { title?: string; projectId?: string; runId?: string }) => void;
   openFromRun: (run: PipelineRun, title: string) => void;
+  /** New project holding one uploaded video, ready to caption and edit. */
+  startProjectFromAsset: (asset: ClipAsset, title: string) => void;
   /** Fill beats that got no footage (e.g. clips stop at 6 min of a 10-min video). */
   fillMissingFootage: () => Promise<void>;
   refreshAssets: () => Promise<void>;
@@ -256,6 +259,8 @@ interface EditorState {
   replaceCaptions: (cues: CaptionCue[]) => void;
   /** Burn-in style used by the renderer. */
   setCaptionStyle: (style: CaptionStyleId) => void;
+  /** Tweak size/colour/position on top of the chosen style. */
+  setCaptionOptions: (patch: Partial<CaptionOptions>) => void;
   applyTimeline: (t: Timeline) => void;
   /** Scene frame size — drives the preview aspect and the render output. */
   setSceneSize: (width: number, height: number) => void;
@@ -355,6 +360,39 @@ export const useEditorStore = create<EditorState>((set, get) => {
         renderJob: null,
       });
       void get().refreshAssets();
+    },
+
+    startProjectFromAsset: (asset, title) => {
+      const dur = naturalDuration(asset);
+      const vid = uid('trk');
+      const t: Timeline = {
+        id: uid('tl'),
+        fps: Math.round(asset.fps ?? 30) || 30,
+        // Match the footage so the frame fits it exactly (even dims for h264).
+        width: Math.max(16, Math.round((asset.width || 1920) / 2) * 2),
+        height: Math.max(16, Math.round((asset.height || 1080) / 2) * 2),
+        durationSec: dur,
+        tracks: [
+          {
+            id: vid,
+            kind: 'video',
+            name: 'V1 · Your video',
+            clips: [
+              {
+                id: uid('clip'),
+                source: { kind: 'asset', assetId: asset.id, inSec: 0, outSec: dur },
+                range: { startSec: 0, endSec: dur },
+                label: title,
+              },
+            ],
+          },
+          { id: uid('trk'), kind: 'audio', name: 'A1 · Audio', clips: [] },
+        ],
+        captions: [],
+      };
+      set({ assets: { ...get().assets, [asset.id]: asset }, runId: null });
+      get().openTimeline(t, { title, projectId: uid('proj') });
+      void get().saveNow();
     },
 
     openFromRun: (run, title) => {
@@ -788,6 +826,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setCaptionStyle: (style) =>
       edit((t) => {
         t.captionStyle = style;
+      }),
+
+    setCaptionOptions: (patch) =>
+      edit((t) => {
+        t.captionOptions = { ...(t.captionOptions ?? {}), ...patch };
       }),
 
     applyTimeline: (t) => {
