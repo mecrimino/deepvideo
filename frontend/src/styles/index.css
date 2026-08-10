@@ -1,48 +1,51 @@
 /* Global styles — ported from Deep Video.dc.html's helmet block. */
 
 /* ---- theme palette ------------------------------------------------------
-   Dark only. Base is rgb(21,21,21); surfaces are translucent so the `.glass`
-   backdrop blur reads as depth over the app background. Every design token in
-   theme.ts maps to one of these vars. */
+   Dark only, modelled on Rive's editor: the base is not neutral grey but a
+   very dark desaturated cyan-navy (#000d15), with elevated controls a few
+   steps lighter, a spring-green accent and an orange playhead. Every design
+   token in theme.ts maps to one of these vars. */
 :root {
-  --bg: #101011;
-  --bg-alt: #131315;
-  --bg-editor: #0e0e0f;
-  --bg-bar: rgba(21, 21, 21, 0.72);
-  --panel: rgba(21, 21, 21, 0.72);
-  --banner: rgba(26, 26, 28, 0.7);
-  --card: rgba(32, 32, 35, 0.55);
-  --raised: rgba(38, 38, 42, 0.68);
-  --control: rgba(42, 42, 47, 0.8);
-  --chip: rgba(48, 48, 54, 0.82);
-  --b6: rgba(255, 255, 255, 0.06);
-  --b7: rgba(255, 255, 255, 0.07);
-  --b8: rgba(255, 255, 255, 0.08);
-  --b9: rgba(255, 255, 255, 0.09);
-  --b10: rgba(255, 255, 255, 0.1);
-  --text: #ececee;
-  --text-soft: #dcdce0;
-  --text-bright: #e7e7ea;
-  --text-mid: #c9c9cf;
-  --text-dim: #9a9aa1;
-  --text-faint: #8b8b92;
-  --text-ghost: #6b6b72;
-  --text-mono: #5c5c63;
-  --hover: rgba(255, 255, 255, 0.07);
-  --hover-strong: rgba(255, 255, 255, 0.11);
-  --hover-border: rgba(255, 255, 255, 0.16);
-  --scroll-thumb: rgba(255, 255, 255, 0.16);
-  --app-bg:
-    radial-gradient(60vw 55vh at 15% 0%, rgba(47, 107, 255, 0.06), transparent 60%),
-    radial-gradient(55vw 50vh at 100% 100%, rgba(255, 138, 76, 0.05), transparent 60%),
-    #0b0b0c;
-  --home-hero:
-    radial-gradient(90vw 46vh at 50% -18%, rgba(150, 155, 170, 0.08), transparent 58%),
-    #060607;
+  --bg: #000d15;
+  --bg-alt: #000f18;
+  --bg-editor: #000b11;
+  --bg-bar: #000d15;
+  --panel: #000d15;
+  --banner: #06182a;
+  --card: #061d2d;
+  --raised: #0b2338;
+  --control: #0e2942;
+  --chip: #123049;
+  --b6: rgba(148, 190, 220, 0.07);
+  --b7: rgba(148, 190, 220, 0.09);
+  --b8: rgba(148, 190, 220, 0.12);
+  --b9: rgba(148, 190, 220, 0.15);
+  --b10: rgba(148, 190, 220, 0.19);
+  --text: #e9f1f7;
+  --text-soft: #dbe6ef;
+  --text-bright: #f2f7fb;
+  --text-mid: #b9cbdb;
+  --text-dim: #8ba1b6;
+  --text-faint: #74899e;
+  --text-ghost: #566b80;
+  --text-mono: #46596c;
+  --hover: rgba(148, 190, 220, 0.08);
+  --hover-strong: rgba(148, 190, 220, 0.14);
+  --hover-border: rgba(148, 190, 220, 0.26);
+  --scroll-thumb: rgba(148, 190, 220, 0.2);
+  /* Rive signature accents */
+  --accent: #0cb08e;
+  --accent-hi: #11f9b0;
+  --playhead: #ff5c1a;
+  --select: #6e8fe8;
+  --tab-active: #0a1c3d;
+  --row-select: rgba(150, 172, 196, 0.34);
+  --app-bg: #000b11;
+  --home-hero: radial-gradient(90vw 46vh at 50% -18%, rgba(17, 249, 176, 0.05), transparent 58%), #000709;
   --home-card-shadow:
-    0 24px 60px -24px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --ph1: #1b1b20;
-  --ph2: #161619;
+    0 24px 60px -24px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(148, 190, 220, 0.06);
+  --ph1: #08202f;
+  --ph2: #061826;
 }
 
 /* Frosted-glass surface: translucent bg (from the token) + blurred backdrop. */
@@ -131,7 +134,8 @@ button {
   background: var(--hover-strong) !important;
 }
 .hv-blue:hover {
-  background: #4880ff !important;
+  background: var(--accent-hi) !important;
+  color: #00120c !important;
 }
 .hv-row:hover {
   background: var(--hover-strong) !important;

@@ -1,6 +1,6 @@
 /**
- * Red playhead line + flag, positioned by the real playhead time and
- * draggable to scrub.
+ * Orange playhead: a full-height line with the current FRAME number in a
+ * rounded badge at its head (Rive-style). Drag either to scrub.
  */
 
 import { useEditorStore } from '../../stores/useEditorStore';
@@ -11,8 +11,10 @@ export function Playhead() {
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const setPlayhead = useEditorStore((s) => s.setPlayhead);
   const pause = useEditorStore((s) => s.pause);
+  const fps = useEditorStore((s) => s.timeline?.fps ?? 30);
 
   const x = playheadSec * pxPerSec;
+  const frame = Math.round(playheadSec * fps);
 
   const drag = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -36,29 +38,42 @@ export function Playhead() {
         onPointerDown={drag}
         style={{
           position: 'absolute',
-          left: x - 0.75,
-          top: 14,
+          left: x - 1,
+          top: 15,
           bottom: 0,
-          width: 1.5,
+          width: 2,
           background: colors.playhead,
           zIndex: 4,
           cursor: 'ew-resize',
         }}
       />
+      {/* frame-number head */}
       <div
         onPointerDown={drag}
+        title={`frame ${frame}`}
         style={{
           position: 'absolute',
-          left: x - 7,
-          top: 8,
-          width: 14,
-          height: 9,
+          // Clamp at the left edge so the badge never gets half-cut at frame 0.
+          left: Math.max(x, 11),
+          top: 2,
+          transform: 'translateX(-50%)',
+          minWidth: 20,
+          height: 14,
+          padding: '0 4px',
+          borderRadius: 3,
           background: colors.playhead,
-          clipPath: 'polygon(0 0,100% 0,50% 100%)',
-          zIndex: 4,
+          color: '#fff',
+          fontSize: 9.5,
+          fontWeight: 700,
+          lineHeight: '14px',
+          textAlign: 'center',
+          zIndex: 5,
           cursor: 'ew-resize',
+          userSelect: 'none',
         }}
-      />
+      >
+        {frame}
+      </div>
     </>
   );
 }

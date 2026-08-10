@@ -1,6 +1,6 @@
 /**
  * Transport row above the timeline: play/pause, seek-to-start, undo/redo,
- * live timecode, speed, zoom, caption + mute toggles, split-at-playhead and
+ * live timecode, zoom, caption + mute toggles, split-at-playhead and
  * export (real ffmpeg render with progress + download link).
  */
 
@@ -12,11 +12,8 @@ import {
   Loader2,
   Minus,
   Music,
-  Pause,
-  Play,
   Plus,
   Redo2,
-  RotateCcw,
   Scissors,
   SlidersHorizontal,
   Undo2,
@@ -27,7 +24,6 @@ import { useAppStore } from '../../stores/useAppStore';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { colors, fontMono } from '../../styles/theme';
 
-const SPEEDS = [0.5, 1, 1.5, 2];
 const ZOOM_MIN = 2;
 const ZOOM_MAX = 60;
 
@@ -39,13 +35,8 @@ function fmtClock(sec: number): string {
 }
 
 export function TransportBar() {
-  const playing = useEditorStore((s) => s.playing);
-  const togglePlay = useEditorStore((s) => s.togglePlay);
   const playheadSec = useEditorStore((s) => s.playheadSec);
-  const setPlayhead = useEditorStore((s) => s.setPlayhead);
   const timeline = useEditorStore((s) => s.timeline);
-  const speed = useEditorStore((s) => s.speed);
-  const setSpeed = useEditorStore((s) => s.setSpeed);
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const setPxPerSec = useEditorStore((s) => s.setPxPerSec);
   const undo = useEditorStore((s) => s.undo);
@@ -67,9 +58,9 @@ export function TransportBar() {
     width: 30,
     height: 30,
     borderRadius: 7,
-    background: active ? 'rgba(47,107,255,.16)' : 'transparent',
+    background: active ? 'rgba(12,176,142,.18)' : 'transparent',
     border: 'none',
-    color: active ? '#6f9bff' : disabled ? '#4a4a52' : colors.textDim,
+    color: active ? '#11f9b0' : disabled ? '#4a4a52' : colors.textDim,
     display: 'grid',
     placeItems: 'center',
     cursor: disabled ? 'default' : 'pointer',
@@ -105,27 +96,7 @@ export function TransportBar() {
         <button className="hv-rail" style={ghostBtn(false, !canRedo)} onClick={redo} title="Redo (Ctrl+Y)">
           <Redo2 size={15} />
         </button>
-        <button className="hv-rail" style={ghostBtn()} onClick={() => setPlayhead(0)} title="Back to start">
-          <RotateCcw size={14} />
-        </button>
-        <button
-          className="hv-blue"
-          onClick={togglePlay}
-          title="Play/Pause (Space)"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 9,
-            background: colors.accent,
-            border: 'none',
-            color: '#fff',
-            display: 'grid',
-            placeItems: 'center',
-            marginLeft: 2,
-          }}
-        >
-          {playing ? <Pause size={15} /> : <Play size={15} />}
-        </button>
+        <div style={{ width: 1, height: 16, background: colors.border8, margin: '0 4px' }} />
         <button className="hv-rail" style={ghostBtn()} onClick={splitAtPlayhead} title="Split clip at playhead (S)">
           <Scissors size={14} />
         </button>
@@ -147,25 +118,10 @@ export function TransportBar() {
         </button>
       </div>
 
-      <div style={{ fontFamily: fontMono, fontSize: 12.5, color: colors.textMid }}>
+      <div style={{ fontFamily: fontMono, fontSize: 12, color: colors.textMid }}>
         {fmtClock(playheadSec)}{' '}
         <span style={{ color: colors.textMono }}>/ {fmtClock(timeline?.durationSec ?? 0)}</span>
       </div>
-      <button
-        onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])}
-        title="Playback speed"
-        style={{
-          fontSize: 11.5,
-          color: colors.textDim,
-          background: colors.raised,
-          border: `1px solid ${colors.border8}`,
-          padding: '3px 9px',
-          borderRadius: 7,
-          cursor: 'pointer',
-        }}
-      >
-        {speed}x
-      </button>
 
       <span style={{ fontSize: 10.5, color: colors.textGhost }}>
         {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Save failed' : ''}

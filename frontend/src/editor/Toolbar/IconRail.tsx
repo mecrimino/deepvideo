@@ -3,7 +3,7 @@
  * captions panel, animation settings card, and the Agent v1 chat.
  */
 
-import { Film, Music, Sparkles, SlidersHorizontal, Type, WandSparkles, X } from 'lucide-react';
+import { Film, Music, SlidersHorizontal, Type, WandSparkles, X } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { colors } from '../../styles/theme';
@@ -29,8 +29,8 @@ export function IconRail() {
   };
   const active: React.CSSProperties = {
     ...base,
-    background: 'rgba(47,107,255,.16)',
-    color: '#6f9bff',
+    background: 'rgba(12,176,142,.18)',
+    color: '#11f9b0',
   };
 
   return (
@@ -81,14 +81,6 @@ export function IconRail() {
         title="Sound effects & music"
       >
         <Music size={17} />
-      </button>
-      <button
-        onClick={() => setActivePanel(activePanel === 'presets' ? 'none' : 'presets')}
-        className={activePanel === 'presets' ? undefined : 'hv-rail'}
-        style={activePanel === 'presets' ? active : base}
-        title="Editing presets — looks & shots"
-      >
-        <Sparkles size={17} />
       </button>
       <button
         onClick={toggleSettings}

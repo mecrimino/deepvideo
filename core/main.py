@@ -270,6 +270,52 @@ async def do_transcribe(body: TranscribeBody) -> dict:
     return {"transcript": transcript.model_dump()}
 
 
+class CaptionsBody(BaseModel):
+    """`path` is any repo-relative media file — a video or an audio track."""
+
+    path: str
+    language: Optional[str] = None
+
+
+@app.post("/captions/generate")
+async def do_generate_captions(body: CaptionsBody) -> dict:
+    """Speech in a media file → timed caption cues, ready for the timeline."""
+    from pathlib import Path as _Path
+
+    from core.agents.base import AgentContext
+    from core.agents.subtitle import SubtitleAgent
+    from core.memory import get_memory
+    from core.tools.ffmpeg import extract_audio
+
+    settings = get_settings()
+    src = settings.paths.root / body.path
+    if not src.exists():
+        src = _Path(body.path)
+    if not src.exists():
+        raise HTTPException(404, f"no such file: {body.path}")
+
+    # Whisper wants audio; a video has to give up its track first.
+    audio_path = src
+    if src.suffix.lower() not in {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}:
+        dest = settings.paths.temp / "captions" / f"{src.stem}.wav"
+        extracted = await extract_audio(src, dest)
+        if extracted is None:
+            raise HTTPException(422, "that file has no audio track to caption")
+        audio_path = extracted
+
+    transcript = await transcribe(str(audio_path), body.language)
+    if not transcript.text.strip():
+        raise HTTPException(422, "no speech found in that file")
+
+    ctx = AgentContext(project_id="captions", memory=get_memory("captions"))
+    cues = SubtitleAgent(ctx).build(transcript)
+    return {
+        "cues": [c.model_dump() for c in cues],
+        "language": transcript.language,
+        "text": transcript.text,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # stock search
 # --------------------------------------------------------------------------- #

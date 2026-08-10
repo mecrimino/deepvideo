@@ -41,7 +41,6 @@ export function ClipBlock({
   const moveClipLane = useEditorStore((s) => s.moveClipLane);
   const trimClipEdge = useEditorStore((s) => s.trimClipEdge);
   const deleteClip = useEditorStore((s) => s.deleteClip);
-  const setActivePanel = useEditorStore((s) => s.setActivePanel);
   const [drag, setDrag] = useState<DragState | null>(null);
 
   // Row pitch: lane height + the 4px gap between TrackRows.
@@ -94,11 +93,6 @@ export function ClipBlock({
   return (
     <div
       onPointerDown={beginDrag('move')}
-      // A composed shot re-opens in the Presets panel, ready to re-customize.
-      onDoubleClick={() => {
-        selectClip(clip.id);
-        setActivePanel('presets');
-      }}
       title={
         clip.review
           ? `${clip.label ?? ''} — weak match (${clip.matchScore ?? '?'}), review suggested`.trim()
@@ -171,31 +165,6 @@ export function ClipBlock({
           >
             {clip.label ?? 'audio'}
           </span>
-        </div>
-      )}
-      {(clip.lookId || clip.shotSpec) && (
-        // A look preset or a built shot rides on the clip — say which, and
-        // double-clicking the block opens it for another round of tweaking.
-        <div
-          title="Double-click to customize"
-          style={{
-            position: 'absolute',
-            left: 3,
-            top: 3,
-            padding: '1px 5px',
-            borderRadius: 4,
-            background: clip.lookId ? 'rgba(47,107,255,.85)' : 'rgba(140,90,255,.85)',
-            color: '#fff',
-            fontSize: 9,
-            letterSpacing: 0.2,
-            pointerEvents: 'none',
-            maxWidth: 'calc(100% - 6px)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {clip.lookId ?? clip.shotSpec?.presetId}
         </div>
       )}
       {clip.review && !selected && (

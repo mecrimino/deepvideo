@@ -1,6 +1,7 @@
 /**
  * Thin AI proxies to the Python core: transcription, stock search, agent chat.
  *   POST /api/transcribe   → core /transcribe
+ *   POST /api/captions/generate → core /captions/generate (speech → cues)
  *   POST /api/stock/search → core /stock/search  (normalised to StockResult)
  *   POST /api/agent/chat   → core /agent/chat
  */
@@ -26,6 +27,19 @@ export function aiProxyRoutes(app: FastifyInstance): void {
       return fail(reply, err);
     }
   });
+
+  app.post<{ Body: { path?: string; language?: string } }>(
+    '/api/captions/generate',
+    async (req, reply) => {
+      const { path, language } = req.body ?? {};
+      if (!path) return reply.code(400).send({ error: 'path required' });
+      try {
+        return await core.post('/captions/generate', { path, language });
+      } catch (err) {
+        return fail(reply, err);
+      }
+    },
+  );
 
   app.post<{ Body: StockSearchRequest }>('/api/stock/search', async (req, reply) => {
     const { query, perSource } = req.body ?? { query: '' };

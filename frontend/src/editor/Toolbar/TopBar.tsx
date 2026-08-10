@@ -33,7 +33,7 @@ export function TopBar() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '7px 12px',
+        padding: '4px 10px',
         borderBottom: `1px solid ${colors.border7}`,
         flexShrink: 0,
         background: colors.bgBar,
@@ -67,9 +67,9 @@ export function TopBar() {
             key={i}
             className="hv-rail"
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 7,
+              width: 28,
+              height: 28,
+              borderRadius: 6,
               background: 'transparent',
               border: 'none',
               color: colors.textDim,
@@ -77,9 +77,10 @@ export function TopBar() {
               placeItems: 'center',
             }}
           >
-            <Icon size={16} />
+            <Icon size={15} />
           </button>
         ))}
+        <div style={{ width: 1, height: 18, background: colors.border8, margin: '0 6px' }} />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, maxWidth: 420 }}>
@@ -215,9 +216,9 @@ export function TopBar() {
             width: 32,
             height: 32,
             borderRadius: 7,
-            background: showChat ? 'rgba(47,107,255,.16)' : 'transparent',
+            background: showChat ? 'rgba(12,176,142,.18)' : 'transparent',
             border: 'none',
-            color: showChat ? '#6f9bff' : colors.textDim,
+            color: showChat ? '#11f9b0' : colors.textDim,
             display: 'grid',
             placeItems: 'center',
             cursor: 'pointer',

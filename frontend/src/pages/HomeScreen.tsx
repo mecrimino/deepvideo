@@ -283,9 +283,9 @@ export function HomeScreen() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 7,
-                  background: 'rgba(47,107,255,.12)',
-                  border: '1px solid rgba(47,107,255,.35)',
-                  color: '#a9c3ff',
+                  background: 'rgba(12,176,142,.14)',
+                  border: '1px solid rgba(12,176,142,.38)',
+                  color: '#7ff0d0',
                   fontSize: 12.5,
                   padding: '5px 10px',
                   borderRadius: 999,
@@ -469,7 +469,7 @@ export function HomeScreen() {
                           gap: 10,
                           padding: '8px 9px',
                           borderRadius: 10,
-                          background: active ? 'rgba(47,107,255,.12)' : colors.card,
+                          background: active ? 'rgba(12,176,142,.14)' : colors.card,
                           border: `1px solid ${active ? colors.accent : colors.border8}`,
                           cursor: 'pointer',
                         }}
@@ -724,7 +724,7 @@ export function HomeScreen() {
                       ? '1px solid rgba(228,106,106,.4)'
                       : gen.status === 'done'
                         ? '1px solid rgba(111,208,142,.4)'
-                        : '1px solid rgba(47,107,255,.45)',
+                        : '1px solid rgba(12,176,142,.48)',
                   borderRadius: 14,
                   overflow: 'hidden',
                   cursor: 'pointer',
@@ -799,7 +799,7 @@ export function HomeScreen() {
                           ? '#6fd08e'
                           : gen.status === 'failed'
                             ? '#e48a8a'
-                            : '#6f9bff',
+                            : '#11f9b0',
                       letterSpacing: '.04em',
                     }}
                   >

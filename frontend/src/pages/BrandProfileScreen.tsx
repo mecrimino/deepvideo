@@ -243,7 +243,7 @@ export function BrandProfileScreen() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: 14,
-                        background: active ? 'rgba(47,107,255,.10)' : colors.card,
+                        background: active ? 'rgba(12,176,142,.12)' : colors.card,
                         border: `1px solid ${active ? colors.accent : colors.border8}`,
                         borderRadius: 12,
                         padding: '13px 15px',
@@ -296,7 +296,7 @@ export function BrandProfileScreen() {
                       className="hv-row"
                       style={{
                         textAlign: 'left',
-                        background: active ? 'rgba(47,107,255,.12)' : colors.card,
+                        background: active ? 'rgba(12,176,142,.14)' : colors.card,
                         border: `1px solid ${active ? colors.accent : colors.border6}`,
                         borderRadius: 12,
                         padding: '12px 14px',

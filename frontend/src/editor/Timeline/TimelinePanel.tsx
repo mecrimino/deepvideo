@@ -56,8 +56,8 @@ function IconBtn({
         placeItems: 'center',
         borderRadius: 5,
         border: 'none',
-        background: active ? 'rgba(47,107,255,.2)' : 'transparent',
-        color: active ? '#6f9bff' : danger ? '#c76b6b' : colors.textMono,
+        background: active ? 'rgba(12,176,142,.18)' : 'transparent',
+        color: active ? colors.accentHi : danger ? '#c76b6b' : colors.textMono,
         cursor: 'pointer',
         padding: 0,
       }}
@@ -90,8 +90,8 @@ function LaneHead({ row }: { row: Row }) {
         style={{
           flex: 1,
           minWidth: 0,
-          fontSize: 9.5,
-          color: colors.textMono,
+          fontSize: 10.5,
+          color: colors.textDim,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -269,7 +269,28 @@ export function TimelinePanel() {
   return (
     <div style={{ padding: '0 16px 2px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-        <div style={{ width: GUTTER, flexShrink: 0, paddingTop: RULER_H }}>
+        <div style={{ width: GUTTER, flexShrink: 0 }}>
+          {/* Layers header, aligned with the ruler row */}
+          <div
+            style={{
+              height: RULER_H,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              paddingRight: 6,
+              borderBottom: `1px solid ${colors.border7}`,
+              fontSize: 9.5,
+              fontWeight: 600,
+              letterSpacing: '.07em',
+              textTransform: 'uppercase',
+              color: colors.textGhost,
+            }}
+          >
+            Layers
+            <span style={{ marginLeft: 'auto', fontWeight: 500, letterSpacing: 0 }}>
+              {rows.length}
+            </span>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {rows.map((row) => (
               <LaneHead key={row.key} row={row} />

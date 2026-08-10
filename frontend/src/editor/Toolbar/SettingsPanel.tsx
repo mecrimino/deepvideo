@@ -150,14 +150,14 @@ export function SettingsPanel() {
                   width: 15,
                   height: 15,
                   borderRadius: '50%',
-                  border: `1.5px solid ${selected ? '#6f9bff' : '#7f7f88'}`,
+                  border: `1.5px solid ${selected ? '#11f9b0' : '#7f7f88'}`,
                   display: 'inline-block',
                 }}
               />
               <span
                 style={{
                   fontSize: 9.5,
-                  color: selected ? '#6f9bff' : '#a7a7ad',
+                  color: selected ? '#11f9b0' : '#a7a7ad',
                   lineHeight: 1,
                   textAlign: 'center',
                 }}

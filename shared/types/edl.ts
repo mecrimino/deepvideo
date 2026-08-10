@@ -100,15 +100,6 @@ export type ClipSource =
       slot: GenerationSlot;
     };
 
-/**
- * The Editing Lab recipe a clip was built from. Kept on the clip so the shot
- * can be re-opened and re-customized any number of times.
- */
-export interface ShotSpec {
-  presetId: string;
-  values: Record<string, unknown>;
-}
-
 /** One clip placed on a track. */
 export interface TimelineClip {
   id: string;
@@ -123,11 +114,6 @@ export interface TimelineClip {
   review?: boolean;
   /** Match score (0..1 cosine) recorded by the matching pipeline. */
   matchScore?: number;
-  /** Look preset applied to this clip (id is for the UI, chain for ffmpeg). */
-  lookId?: string;
-  look?: string;
-  /** Set when the clip is a composed shot — lets the editor re-render it. */
-  shotSpec?: ShotSpec;
   /** Playback gain for audio clips (1 = unity). */
   gain?: number;
 }
@@ -162,7 +148,21 @@ export interface Timeline {
   audioPath?: string;
   tracks: Track[];
   captions: CaptionCue[];
+  /** Burn-in caption style; ids match core/agents/exporter/caption_styles.py. */
+  captionStyle?: CaptionStyleId;
 }
+
+/** Caption burn-in styles offered in the editor. */
+export type CaptionStyleId = 'classic' | 'outline' | 'pop' | 'banner' | 'minimal' | 'top';
+
+export const CAPTION_STYLES: { id: CaptionStyleId; label: string; hint: string }[] = [
+  { id: 'classic', label: 'Classic', hint: 'White on a soft black box' },
+  { id: 'outline', label: 'Bold outline', hint: 'Large white with a thick outline' },
+  { id: 'pop', label: 'Yellow pop', hint: 'Impact caps in yellow' },
+  { id: 'banner', label: 'Banner', hint: 'Wide dark bar across the bottom' },
+  { id: 'minimal', label: 'Minimal', hint: 'Small white with a soft shadow' },
+  { id: 'top', label: 'Top bar', hint: 'Boxed caption at the top' },
+];
 
 /** A saved editor project (timeline + provenance). */
 export interface Project {

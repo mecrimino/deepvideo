@@ -4,7 +4,7 @@
  */
 
 import { useEditorStore } from '../../stores/useEditorStore';
-import { colors, fontMono } from '../../styles/theme';
+import { colors } from '../../styles/theme';
 import { formatRulerLabel } from '../../utils/format';
 
 /** Major-tick step (seconds) that keeps labels ~110px apart at this zoom. */
@@ -44,19 +44,16 @@ export function Ruler({ contentSec }: { contentSec: number }) {
       onPointerDown={scrub}
       style={{
         position: 'relative',
-        height: 23,
-        fontFamily: fontMono,
-        fontSize: 10,
-        color: colors.textMono,
+        height: 22,
+        fontSize: 9.5,
+        letterSpacing: '.02em',
+        color: colors.textGhost,
         cursor: 'ew-resize',
         userSelect: 'none',
+        borderBottom: `1px solid ${colors.border7}`,
       }}
     >
-      {majors.map((t) => (
-        <div key={t} style={{ position: 'absolute', left: t * pxPerSec, top: 3 }}>
-          <span style={{ position: 'relative', left: t === 0 ? 0 : -8 }}>{formatRulerLabel(t)}</span>
-        </div>
-      ))}
+      {/* minor ticks — short hairlines hanging from the bottom of the row */}
       {majors.flatMap((t) =>
         Array.from({ length: minorsPerMajor }, (_, i) => {
           const x = (t + ((i + 1) * step) / (minorsPerMajor + 1)) * pxPerSec;
@@ -68,13 +65,40 @@ export function Ruler({ contentSec }: { contentSec: number }) {
                 left: x,
                 bottom: 0,
                 width: 1,
-                height: 3,
-                background: '#33333a',
+                height: 4,
+                background: 'rgba(148,190,220,.22)',
               }}
             />
           ) : null;
         }),
       )}
+      {/* major ticks + their second label, centred on the tick */}
+      {majors.map((t) => (
+        <div key={t}>
+          <div
+            style={{
+              position: 'absolute',
+              left: t * pxPerSec,
+              bottom: 0,
+              width: 1,
+              height: 7,
+              background: 'rgba(148,190,220,.38)',
+            }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              left: t * pxPerSec,
+              top: 4,
+              transform: t === 0 ? 'none' : 'translateX(-50%)',
+              paddingLeft: t === 0 ? 3 : 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {formatRulerLabel(t)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

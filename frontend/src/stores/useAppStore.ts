@@ -295,7 +295,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   showModel: false,
   showPlus: false,
   showSettings: false,
-  showChat: true,
+  showChat: false,
 
   run: null,
   runError: null,

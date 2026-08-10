@@ -13,11 +13,13 @@ import { useAppStore } from '../stores/useAppStore';
 import { emptyTimeline, useEditorStore } from '../stores/useEditorStore';
 import { colors } from '../styles/theme';
 import { PreviewPane } from './Preview/PreviewPane';
+import { SceneTabs } from './Timeline/SceneTabs';
 import { TimelinePanel } from './Timeline/TimelinePanel';
+import { TransportPill } from './Preview/TransportPill';
 import { AgentChat } from './Toolbar/AgentChat';
+import { Inspector } from './Toolbar/Inspector';
 import { IconRail } from './Toolbar/IconRail';
 import { MediaPanel } from './Toolbar/MediaPanel';
-import { PresetsPanel } from './Toolbar/PresetsPanel';
 import { RenderDialog } from './Toolbar/RenderDialog';
 import { ReplaceDialog } from './Toolbar/ReplaceDialog';
 import { SettingsPanel } from './Toolbar/SettingsPanel';
@@ -106,11 +108,12 @@ export function EditorScreen() {
             {activePanel === 'media' && <MediaPanel />}
             {activePanel === 'text' && <TextPanel />}
             {activePanel === 'sfx' && <SfxPanel />}
-            {activePanel === 'presets' && <PresetsPanel />}
             <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', minHeight: 0 }}>
               {showSettings && <SettingsPanel />}
               <PreviewPane />
+              <TransportPill />
             </div>
+            <Inspector />
           </div>
 
           <div
@@ -125,6 +128,7 @@ export function EditorScreen() {
               overflow: 'hidden',
             }}
           >
+            <SceneTabs />
             <TransportBar />
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
               <TimelinePanel />

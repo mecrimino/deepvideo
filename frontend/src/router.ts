@@ -6,7 +6,6 @@
  *   /setup                Creative setup + cost estimate
  *   /processing/:runId    Live pipeline monitor for one generation run
  *   /editor/:projectId    The timeline editor for one specific project
- *   /test                 Editing Lab — preview editing presets on a real clip
  *
  * Two Zustand stores are the source of truth: `useAppStore.screen` (which page)
  * and `useEditorStore.projectId` / `useAppStore.gen.runId` (which document).
@@ -18,7 +17,7 @@ import { useAppStore } from './stores/useAppStore';
 import { useEditorStore } from './stores/useEditorStore';
 import { loadProject } from './services/project';
 
-export type Screen = 'home' | 'plan' | 'brand' | 'theme' | 'setup' | 'processing' | 'editor' | 'test';
+export type Screen = 'home' | 'plan' | 'brand' | 'theme' | 'setup' | 'processing' | 'editor';
 
 /** Forward flow order, for reference/progress UIs. */
 export const SCREEN_FLOW: Screen[] = ['home', 'plan', 'theme', 'setup', 'processing', 'editor'];
@@ -32,7 +31,6 @@ export const SCREEN_BASE: Record<Screen, string> = {
   setup: '/setup',
   processing: '/processing',
   editor: '/editor',
-  test: '/test',
 };
 
 interface ParsedPath {
@@ -53,8 +51,6 @@ export function parsePath(pathname: string): ParsedPath {
       return { screen: 'theme' };
     case 'setup':
       return { screen: 'setup' };
-    case 'test':
-      return { screen: 'test' };
     case 'processing':
       return { screen: 'processing', id };
     case 'editor':

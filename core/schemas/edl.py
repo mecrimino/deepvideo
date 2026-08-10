@@ -139,6 +139,8 @@ class Timeline(BaseModel):
     audioPath: Optional[str] = None
     tracks: list[Track] = Field(default_factory=list)
     captions: list[CaptionCue] = Field(default_factory=list)
+    #: burn-in caption style id (see core/agents/exporter/caption_styles.py)
+    captionStyle: Optional[str] = None
 
 
 class Project(BaseModel):

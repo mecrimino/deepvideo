@@ -13,11 +13,7 @@ export type DragPayload =
   /** An asset already in the clip library. */
   | { k: 'asset'; id: string }
   /** A repo file that is not in the library yet (a shipped sfx, a background). */
-  | { k: 'path'; path: string }
-  /** A look preset — drop it on a clip to stamp its filter on. */
-  | { k: 'look'; id: string; filter: string }
-  /** A composition preset — drop it on a lane to build and insert the shot. */
-  | { k: 'shot'; id: string };
+  | { k: 'path'; path: string };
 
 /** Spread onto any element to make it a drag source. */
 export function dragProps(payload: DragPayload): {

@@ -8,11 +8,11 @@
 import { create } from 'zustand';
 import type {
   CaptionCue,
+  CaptionStyleId,
   ClipAsset,
   PipelineRun,
   Project,
   RenderJob,
-  ShotSpec,
   Timeline,
   TimelineClip,
   Track,
@@ -158,13 +158,15 @@ interface EditorState {
   playheadSec: number;
   speed: number;
   muted: boolean;
+  /** Restart from 0 at the end instead of stopping. */
+  loop: boolean;
   showCaptions: boolean;
 
   /* view */
   pxPerSec: number;
   selectedClipId: string | null;
   selectedCueId: string | null;
-  activePanel: 'none' | 'media' | 'text' | 'presets' | 'sfx';
+  activePanel: 'none' | 'media' | 'text' | 'sfx';
   /** Height (px) of the transport+timeline strip — drag the preview pill. */
   timelineH: number;
   /** Width (px) of the agent panel — drag its left-edge handle. */
@@ -198,6 +200,7 @@ interface EditorState {
   togglePlay: () => void;
   setSpeed: (x: number) => void;
   toggleMuted: () => void;
+  toggleLoop: () => void;
   toggleCaptions: () => void;
   advance: (dt: number) => void;
 
@@ -205,7 +208,7 @@ interface EditorState {
   setPxPerSec: (v: number) => void;
   selectClip: (id: string | null) => void;
   selectCue: (id: string | null) => void;
-  setActivePanel: (p: 'none' | 'media' | 'text' | 'presets' | 'sfx') => void;
+  setActivePanel: (p: 'none' | 'media' | 'text' | 'sfx') => void;
   setTimelineH: (px: number) => void;
   setAgentW: (px: number) => void;
 
@@ -246,16 +249,20 @@ interface EditorState {
   addAssetAt: (assetId: string, trackId: string | null, startSec: number) => void;
   /** Take an asset into the local catalog (after an upload or a registration). */
   registerAsset: (asset: ClipAsset) => void;
-  /** Apply (or clear, with a null filter) a look preset on one clip. */
-  setClipLook: (clipId: string, lookId: string | null, filter: string | null) => void;
-  /** Put a freshly composed shot in the library and on the timeline. */
-  addComposedAsset: (asset: ClipAsset, spec?: ShotSpec, at?: { trackId: string | null; startSec: number }) => void;
-  /** Re-render of an existing shot clip: swap its media, keep its place. */
-  updateClipShot: (clipId: string, asset: ClipAsset, spec: ShotSpec) => void;
   addCaptionAtPlayhead: (text: string) => void;
   updateCaption: (cueId: string, text: string) => void;
   deleteCaption: (cueId: string) => void;
+  /** Swap in a whole generated caption track (undoable). */
+  replaceCaptions: (cues: CaptionCue[]) => void;
+  /** Burn-in style used by the renderer. */
+  setCaptionStyle: (style: CaptionStyleId) => void;
   applyTimeline: (t: Timeline) => void;
+  /** Scene frame size — drives the preview aspect and the render output. */
+  setSceneSize: (width: number, height: number) => void;
+  /** Scene frame rate — drives the playhead's frame readout and the render. */
+  setFps: (fps: number) => void;
+  /** Rename the open project (persisted with the next save). */
+  setProjectTitle: (title: string) => void;
   undo: () => void;
   redo: () => void;
 
@@ -311,6 +318,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     playheadSec: 0,
     speed: 1,
     muted: false,
+    loop: false,
     showCaptions: true,
 
     pxPerSec: 12,
@@ -410,14 +418,17 @@ export const useEditorStore = create<EditorState>((set, get) => {
     togglePlay: () => (get().playing ? get().pause() : get().play()),
     setSpeed: (x) => set({ speed: x }),
     toggleMuted: () => set((s) => ({ muted: !s.muted })),
+    toggleLoop: () => set((s) => ({ loop: !s.loop })),
     toggleCaptions: () => set((s) => ({ showCaptions: !s.showCaptions })),
 
     advance: (dt) => {
-      const { playing, playheadSec, timeline } = get();
+      const { playing, playheadSec, timeline, loop } = get();
       if (!playing || !timeline) return;
       const next = playheadSec + dt;
       if (next >= timeline.durationSec) {
-        set({ playheadSec: timeline.durationSec, playing: false });
+        // Loop restarts from the top instead of stopping at the end.
+        if (loop) set({ playheadSec: 0 });
+        else set({ playheadSec: timeline.durationSec, playing: false });
       } else {
         set({ playheadSec: next });
       }
@@ -429,7 +440,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setTimelineH: (px) => {
       // Cap so clip filmstrips never upscale past their thumbnail resolution.
-      const v = Math.round(Math.max(120, Math.min(280, px)));
+      // 30 is the collapsed height (the scene tab strip alone); anything the
+      // drag handle produces is kept above the usable minimum.
+      const v = Math.round(px <= 40 ? 30 : Math.max(120, Math.min(280, px)));
       localStorage.setItem('deepvideo.ui.timelineH', String(v));
       set({ timelineH: v });
     },
@@ -739,72 +752,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
       });
     },
 
-    setClipLook: (clipId, lookId, filter) =>
-      edit((t) => {
-        const clip = editableTrackOf(t, clipId).clips.find((c) => c.id === clipId)!;
-        if (filter && lookId) {
-          clip.lookId = lookId;
-          clip.look = filter;
-        } else {
-          delete clip.lookId;
-          delete clip.look;
-        }
-      }),
-
-    addComposedAsset: (asset, spec, at) => {
-      // The shot is a real file the gateway already registered — take it into
-      // the local catalog so the timeline can reference it by id.
-      set({ assets: { ...get().assets, [asset.id]: asset } });
-      const startSec = at ? at.startSec : get().playheadSec;
-      const dur = naturalDuration(asset);
-      edit((t) => {
-        // A graphic belongs over the footage: the lane it was dropped on, else
-        // the first overlay lane free at that moment, else a new layer.
-        const dropped = at?.trackId ? t.tracks.find((tr) => tr.id === at.trackId) : undefined;
-        if (dropped?.locked) throw new Error(`${dropped.name} is locked`);
-        let track = dropped?.kind !== 'audio' ? dropped : undefined;
-        track ??= t.tracks.find(
-          (tr) =>
-            tr.kind === 'overlay' &&
-            !tr.locked &&
-            !tr.clips.some((c) => startSec < c.range.endSec && startSec + dur > c.range.startSec),
-        );
-        if (!track) {
-          const overlays = t.tracks.filter((tr) => tr.kind === 'overlay').length;
-          if (overlays >= MAX_OVERLAY_LANES) throw new Error(`maximum ${MAX_OVERLAY_LANES + 1} layers`);
-          track = { id: uid('trk'), kind: 'overlay', name: `Layer ${overlays + 2}`, clips: [] };
-          t.tracks.unshift(track);
-        }
-        const start = fitStart(track, startSec, dur);
-        track.clips.push({
-          id: uid('clip'),
-          source: { kind: 'asset', assetId: asset.id, inSec: 0, outSec: dur },
-          range: { startSec: start, endSec: start + dur },
-          label: asset.tags.slice(0, 3).join(' ') || 'shot',
-          shotSpec: spec,
-        });
-        track.clips.sort((a, b) => a.range.startSec - b.range.startSec);
-      });
-    },
-
-    updateClipShot: (clipId, asset, spec) => {
-      set({ assets: { ...get().assets, [asset.id]: asset } });
-      edit((t) => {
-        const track = editableTrackOf(t, clipId);
-        const clip = track.clips.find((c) => c.id === clipId)!;
-        // Re-rendering may change the shot's length — grow into the gap after
-        // it when there is room, otherwise keep the slot the clip already has.
-        const next = track.clips
-          .filter((c) => c.id !== clipId && c.range.startSec >= clip.range.startSec)
-          .sort((a, b) => a.range.startSec - b.range.startSec)[0];
-        const room = (next?.range.startSec ?? Infinity) - clip.range.startSec;
-        const dur = Math.max(MIN_CLIP_SEC, Math.min(naturalDuration(asset), room));
-        clip.source = { kind: 'asset', assetId: asset.id, inSec: 0, outSec: dur };
-        clip.range = { startSec: clip.range.startSec, endSec: clip.range.startSec + dur };
-        clip.shotSpec = spec;
-      });
-    },
-
     addCaptionAtPlayhead: (text) => {
       const { playheadSec } = get();
       edit((t) => {
@@ -831,6 +778,18 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (get().selectedCueId === cueId) set({ selectedCueId: null });
     },
 
+    replaceCaptions: (cues) => {
+      edit((t) => {
+        t.captions = [...cues].sort((a, b) => a.range.startSec - b.range.startSec);
+      });
+      set({ selectedCueId: null });
+    },
+
+    setCaptionStyle: (style) =>
+      edit((t) => {
+        t.captionStyle = style;
+      }),
+
     applyTimeline: (t) => {
       const { timeline, past } = get();
       if (!timeline) return;
@@ -839,6 +798,23 @@ export const useEditorStore = create<EditorState>((set, get) => {
         past: [...past.slice(-HISTORY_LIMIT), timeline],
         future: [],
       });
+      scheduleSave();
+    },
+
+    setSceneSize: (width, height) =>
+      edit((t) => {
+        // Keep it a sane, even-numbered frame — h264 refuses odd dimensions.
+        t.width = Math.max(16, Math.round(width / 2) * 2);
+        t.height = Math.max(16, Math.round(height / 2) * 2);
+      }),
+
+    setFps: (fps) =>
+      edit((t) => {
+        t.fps = Math.max(1, Math.min(120, Math.round(fps)));
+      }),
+
+    setProjectTitle: (title) => {
+      set({ projectTitle: title.trim() || 'Untitled project' });
       scheduleSave();
     },
 

@@ -1,6 +1,5 @@
 import { BrandProfileScreen } from './pages/BrandProfileScreen';
 import { DevDashboard, DevModeButton } from './dev/DevDashboard';
-import { EditingLabScreen } from './pages/EditingLabScreen';
 import { EditorScreen } from './editor/EditorScreen';
 import { HomeScreen } from './pages/HomeScreen';
 import { PlanScreen } from './pages/PlanScreen';
@@ -21,7 +20,6 @@ export default function App() {
       {screen === 'setup' && <SetupScreen />}
       {screen === 'processing' && <ProcessingScreen />}
       {screen === 'editor' && <EditorScreen />}
-      {screen === 'test' && <EditingLabScreen />}
       <DevModeButton />
       <DevDashboard />
     </div>

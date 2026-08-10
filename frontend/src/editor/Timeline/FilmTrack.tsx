@@ -3,7 +3,7 @@
  * the given track, positioned by real time. Click empty lane space to move the
  * playhead; drag a clip vertically to move it between layers of the same kind
  * (handled in ClipBlock via laneH). Anything dragged in from a panel (media,
- * sfx, looks, shots) or from the desktop lands here — see useLaneDrop.
+ * sfx) or from the desktop lands here — see useLaneDrop.
  */
 
 import { useEditorStore } from '../../stores/useEditorStore';
@@ -17,12 +17,15 @@ export function FilmTrack({ trackId, height = 36 }: { trackId: string; height?: 
   const pxPerSec = useEditorStore((s) => s.pxPerSec);
   const setPlayhead = useEditorStore((s) => s.setPlayhead);
   const selectClip = useEditorStore((s) => s.selectClip);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const { over, dropProps } = useLaneDrop(trackId);
 
   const track = timeline?.tracks.find((t) => t.id === trackId);
   const clips = track?.clips ?? [];
   const isAudio = track?.kind === 'audio';
   const locked = Boolean(track?.locked);
+  // Rive marks the active layer's whole row, not just the clip.
+  const rowActive = clips.some((c) => c.id === selectedClipId);
 
   return (
     <div
@@ -37,12 +40,14 @@ export function FilmTrack({ trackId, height = 36 }: { trackId: string; height?: 
         position: 'relative',
         height,
         background: locked
-          ? 'repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 6px,transparent 6px 12px)'
+          ? 'repeating-linear-gradient(135deg,rgba(148,190,220,.05) 0 6px,transparent 6px 12px)'
           : over
-            ? 'rgba(47,107,255,.16)'
-            : isAudio
-              ? 'rgba(70,190,140,.05)'
-              : 'rgba(255,255,255,.02)',
+            ? 'rgba(12,176,142,.18)'
+            : rowActive
+              ? colors.rowSelect
+              : isAudio
+                ? 'rgba(12,176,142,.06)'
+                : 'rgba(148,190,220,.045)',
         borderRadius: 4,
         outline: over && !locked ? `1px dashed ${colors.accent}` : undefined,
         opacity: locked ? 0.72 : 1,
@@ -63,7 +68,7 @@ export function FilmTrack({ trackId, height = 36 }: { trackId: string; height?: 
         >
           {locked
             ? `${track?.name} is locked`
-            : `${track?.name} — drop ${isAudio ? 'sound' : 'media, looks or shots'} here`}
+            : `${track?.name} — drop ${isAudio ? 'sound' : 'media'} here`}
         </div>
       )}
       {clips.map((clip) => (

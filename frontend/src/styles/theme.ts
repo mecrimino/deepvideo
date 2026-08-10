@@ -33,16 +33,20 @@ export const colors = {
   textFaint: 'var(--text-faint)',
   textGhost: 'var(--text-ghost)',
   textMono: 'var(--text-mono)',
-  // accents (shared across themes)
-  accent: '#2f6bff',
-  accentHover: '#4880ff',
-  playhead: '#ff4d4d',
-  waveform: '#dca93a',
+  // accents — Rive signature: spring-green primary, orange playhead
+  accent: 'var(--accent)',
+  accentHover: 'var(--accent-hi)',
+  accentHi: 'var(--accent-hi)',
+  playhead: 'var(--playhead)',
+  select: 'var(--select)',
+  tabActive: 'var(--tab-active)',
+  rowSelect: 'var(--row-select)',
+  waveform: '#0cb08e',
   gold: '#ffb340',
 } as const;
 
 export const gradients = {
-  brand: 'linear-gradient(140deg,#ff8a4c,#2f6bff)',
+  brand: 'linear-gradient(140deg,#11f9b0,#0a7d8c)',
   avatar: 'linear-gradient(140deg,#e05fa0,#7b5cff)',
   avatar2: 'linear-gradient(140deg,#4caf88,#2f6bff)',
   homeHero: 'var(--home-hero)',

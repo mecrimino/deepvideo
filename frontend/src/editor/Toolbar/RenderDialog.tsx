@@ -75,7 +75,7 @@ export function RenderDialog() {
               onClick={() => setResIdx(i)}
               style={{
                 textAlign: 'left',
-                background: i === resIdx ? 'rgba(47,107,255,.14)' : colors.card,
+                background: i === resIdx ? 'rgba(12,176,142,.16)' : colors.card,
                 border: `1px solid ${i === resIdx ? colors.accent : colors.border8}`,
                 borderRadius: 10,
                 padding: '9px 10px',

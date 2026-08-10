@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from core.config import get_settings
+from core.agents.exporter.caption_styles import drawtext_clause
 from core.providers.storage import get_asset, rel
 from core.schemas.edl import Timeline, TimelineClip
 from core.tools.ffmpeg.ffmpeg import _run  # low-level runner (async)
@@ -47,13 +48,9 @@ def _esc_drawtext(text: str) -> str:
     return "\n".join(lines[:6])
 
 
-def _drawtext(text: str, h: int) -> str:
-    """A leading-comma drawtext clause that boxes `text` low in the frame."""
-    return (
-        f",drawtext=fontfile='{_FONT}':text='{_esc_drawtext(text)}':"
-        f"fontcolor=white:fontsize={max(24, h // 24)}:box=1:boxcolor=black@0.5:"
-        f"boxborderw=12:x=(w-text_w)/2:y=h-text_h-{h // 12}:line_spacing=8"
-    )
+def _drawtext(text: str, h: int, style: Optional[str] = None) -> str:
+    """A leading-comma drawtext clause rendering `text` in the chosen style."""
+    return drawtext_clause(text, h, style, _esc_drawtext)
 
 
 class ExporterAgent:
@@ -174,7 +171,9 @@ class ExporterAgent:
 
         if len(windows) == 1:
             (w0, w1) = windows[0]
-            return await self._render_window(clips, cues, w0, w1 - w0, work / "composite.mp4", w, h, fps)
+            return await self._render_window(
+                clips, cues, w0, w1 - w0, work / "composite.mp4", w, h, fps, timeline.captionStyle
+            )
 
         segments: list[Path] = []
         for i, (w0, w1) in enumerate(windows):
@@ -183,7 +182,11 @@ class ExporterAgent:
             sub = [c for c in clips if c.range.startSec < w1 and c.range.endSec > w0]
             subcues = [c for c in cues if c.range.startSec < w1 and c.range.endSec > w0]
             seg = work / f"win_{i:03d}.mp4"
-            segments.append(await self._render_window(sub, subcues, w0, w1 - w0, seg, w, h, fps))
+            segments.append(
+                await self._render_window(
+                    sub, subcues, w0, w1 - w0, seg, w, h, fps, timeline.captionStyle
+                )
+            )
         if progress:
             progress(0.8, "joining windows")
         return await self._concat(segments, work, w, h, fps)
@@ -215,6 +218,7 @@ class ExporterAgent:
         w: int,
         h: int,
         fps: int,
+        style: Optional[str] = None,
     ) -> Path:
         """Composite `clips`/`cues` onto a `dur`-second canvas, times relative to w0."""
         args: list[str] = ["-y", "-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:d={dur:.3f}:r={fps}"]
@@ -265,7 +269,7 @@ class ExporterAgent:
                 continue
             nxt = f"t{j}"
             chains.append(
-                f"[{canvas}]{_drawtext(cue.text, h).lstrip(',')}"
+                f"[{canvas}]{_drawtext(cue.text, h, style).lstrip(',')}"
                 f":enable='between(t,{cs:.3f},{ce:.3f})'[{nxt}]"
             )
             canvas = nxt

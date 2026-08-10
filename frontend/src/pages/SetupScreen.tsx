@@ -364,7 +364,7 @@ export function SetupScreen() {
                       className="hv-row"
                       style={{
                         textAlign: 'left',
-                        background: active ? 'rgba(47,107,255,.12)' : colors.card,
+                        background: active ? 'rgba(12,176,142,.14)' : colors.card,
                         border: `1px solid ${active ? colors.accent : colors.border6}`,
                         borderRadius: 12,
                         padding: '12px 14px',

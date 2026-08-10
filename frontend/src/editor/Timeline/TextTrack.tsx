@@ -60,7 +60,7 @@ function Chip({ cue }: { cue: CaptionCue }) {
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        background: selected ? 'rgba(47,107,255,.25)' : colors.raised,
+        background: selected ? 'rgba(12,176,142,.28)' : colors.raised,
         border: `1px solid ${selected ? colors.accent : colors.border6}`,
         borderRadius: 4,
         padding: '0 6px',
