@@ -67,7 +67,10 @@ def loudness(video: Path, at: float, span: float) -> float:
          "-af", "volumedetect", "-f", "null", "-"],
         capture_output=True, text=True,
     ).stderr
-    line = next(x for x in err.splitlines() if "max_volume" in x)
+    line = next((x for x in err.splitlines() if "max_volume" in x), None)
+    # No audio stream at all is the quietest possible result, not an error.
+    if line is None:
+        return -999.0
     return float(line.split("max_volume:")[1].replace("dB", "").strip())
 
 
@@ -147,11 +150,13 @@ def check_micro_gaps(exporter: ExporterAgent, media: dict[str, Path]) -> None:
 
 def check_broll_silent(exporter: ExporterAgent, media: dict[str, Path]) -> None:
     """
-    Stock B-roll ships with its own ambience, which would fight the narration.
-    Visual lanes are picture only: even when a clip's FILE has a loud audio
-    stream, none of it may reach the export.
+    Two rules, one graph: stock B-roll ambience must never reach the export
+    (it fights the narration), but footage the USER uploaded keeps its sound —
+    they added it to hear it.
     """
-    with_sound = Path(WORK) / "broll_with_sfx.mp4"
+    import core.agents.exporter.agent as exp_mod
+
+    with_sound = Path(WORK) / "clip_with_sfx.mp4"
     if not with_sound.exists():
         subprocess.run(
             ["ffmpeg", "-v", "error", "-y",
@@ -161,31 +166,45 @@ def check_broll_silent(exporter: ExporterAgent, media: dict[str, Path]) -> None:
             check=True,
         )
 
-    noisy = {
-        "id": "noisy",
-        "source": {"kind": "asset", "assetId": "noisy", "inSec": 0, "outSec": 3},
-        "range": {"startSec": 4, "endSec": 7},
-    }
-    timeline = Timeline.model_validate({
-        "id": "tl_broll", "fps": 30, "width": 320, "height": 180, "durationSec": 10,
-        "tracks": [
-            {"id": "ov", "kind": "overlay", "name": "L2", "clips": [noisy]},
-            {"id": "vid", "kind": "video", "name": "V", "clips": [clip("red", 0, 10)]},
-        ],
-        "captions": [],
-    })
-    exporter._resolve_asset = lambda c: with_sound if c.id == "noisy" else media["red"]  # type: ignore[method-assign]
+    def timeline_with(asset_id: str):
+        noisy = {
+            "id": asset_id,
+            "source": {"kind": "asset", "assetId": asset_id, "inSec": 0, "outSec": 3},
+            "range": {"startSec": 4, "endSec": 7},
+        }
+        return Timeline.model_validate({
+            "id": "tl_a", "fps": 30, "width": 320, "height": 180, "durationSec": 10,
+            "tracks": [
+                {"id": "ov", "kind": "overlay", "name": "L2", "clips": [noisy]},
+                {"id": "vid", "kind": "video", "name": "V", "clips": [clip("red", 0, 10)]},
+            ],
+            "captions": [],
+        })
 
-    out = asyncio.run(exporter.render(timeline, job_id="check_export_brollsilent", width=320, height=180))
-    # No audio stream at all is the ideal outcome; a silent one is fine too.
-    info = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
-         "stream=codec_type", "-of", "csv=p=0", str(out)],
-        capture_output=True, text=True,
-    ).stdout.strip()
-    if info:
-        assert loudness(out, 5, 1) < -55, "B-roll ambience must not reach the export"
-    print(f"ok — {out} keeps stock B-roll ambience out of the render")
+    exporter._resolve_asset = lambda c: with_sound if c.id in ("stockclip", "userclip") else media["red"]  # type: ignore[method-assign]
+    real_get_asset = exp_mod.get_asset
+
+    def fake_get_asset(asset_id):
+        if asset_id == "stockclip":
+            return {"id": asset_id, "path": str(with_sound), "source": "stock"}
+        if asset_id == "userclip":
+            return {"id": asset_id, "path": str(with_sound), "source": "user"}
+        return real_get_asset(asset_id)
+
+    exp_mod.get_asset = fake_get_asset
+    try:
+        out = asyncio.run(exporter.render(timeline_with("stockclip"), job_id="check_export_brollsilent",
+                                          width=320, height=180))
+        assert loudness(out, 5, 1) < -55, "stock B-roll ambience must not reach the export"
+        print(f"ok — {out} keeps stock B-roll ambience out of the render")
+
+        out = asyncio.run(exporter.render(timeline_with("userclip"), job_id="check_export_useraudio",
+                                          width=320, height=180))
+        assert loudness(out, 5, 1) > -30, "your own uploaded video must keep its audio"
+        assert loudness(out, 1, 1) < -55, "audio outside the clip should stay silent"
+        print(f"ok — {out} keeps the audio of footage you uploaded yourself")
+    finally:
+        exp_mod.get_asset = real_get_asset
 
 
 def check_batched(exporter: ExporterAgent, media: dict[str, Path]) -> None:

@@ -19,6 +19,7 @@ from typing import Callable, Optional
 from core.config import get_settings
 from core.agents.exporter.caption_styles import cue_segments, drawtext_clause
 from core.providers.storage import get_asset, rel
+from core.tools.ffmpeg.ffmpeg import probe as ff_probe
 from core.schemas.edl import Timeline, TimelineClip
 from core.tools.ffmpeg.ffmpeg import _run  # low-level runner (async)
 from core.utils.logging import get_logger
@@ -308,6 +309,14 @@ class ExporterAgent:
             raise RuntimeError(f"window concat failed: {err.decode('utf-8', 'ignore')[-400:]}")
         return out
 
+    def _is_user_footage(self, clip: TimelineClip) -> bool:
+        """True for media the user brought in themselves (not stock B-roll)."""
+        src = clip.source
+        if getattr(src, "kind", None) != "asset":
+            return False
+        rec = get_asset(getattr(src, "assetId", ""))
+        return bool(rec) and rec.get("source") == "user"
+
     def _resolve_asset(self, clip: TimelineClip) -> Optional[Path]:
         src = clip.source
         if getattr(src, "kind", None) != "asset":
@@ -341,8 +350,17 @@ class ExporterAgent:
             if (path := self._resolve_asset(clip)) is not None
         ]
 
-        # Visual lanes never contribute sound: stock B-roll ships with ambience
-        # that fights the narration, so only audio lanes are mixed in.
+        # Visual lanes: YOUR OWN footage keeps its sound (you uploaded it to
+        # hear it), stock B-roll does not — its ambience fights the narration.
+        for track in timeline.tracks:
+            if track.kind not in ("video", "overlay") or track.muted:
+                continue
+            for clip in track.clips:
+                if not self._is_user_footage(clip):
+                    continue
+                path = self._resolve_asset(clip)
+                if path is not None and (await ff_probe(path)).hasAudio:
+                    placed.append((clip, path))
 
         if placed:
             return await self._mix_audio(video, audio_abs, placed, out)
