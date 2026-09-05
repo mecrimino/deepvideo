@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎬 Deep Vision — Autonomous AI Video Studio
+#  Deep Vision — Autonomous AI Video Studio
 
 ![Deep Vision](https://img.shields.io/badge/DEEP_VISION-AUTONOMOUS_VIDEO_STUDIO-8957e5?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
@@ -63,9 +63,9 @@ npm run dev:backend    # Node gateway → Fastify  :8787   (proxies /api → cor
 npm run dev            # frontend      → Vite     :5173   (proxies /api,/files,/dev)
 ```
 
-Then open **http://localhost:5173**. ⚡
+Then open **http://localhost:5173**. 
 
-## 🎬 The workflow
+##  The workflow
 
 ```
 Idea ──► Director chat ──► Setup ──► Processing ──► Editor ──► Render
@@ -85,7 +85,7 @@ Idea ──► Director chat ──► Setup ──► Processing ──► Edit
 5. **Edit & render** — a full timeline editor (layers, drag/trim/split,
    captions, agent chat) exports to MP4.
 
-## ✨ Features
+##  Features
 
 | Feature | Description |
 |---------|-------------|
